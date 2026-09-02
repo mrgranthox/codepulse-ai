@@ -1,0 +1,6 @@
+{
+  "name": "CodePulse AI",
+  "description": "Real-time codebase, architecture, and security auditor powered by Gemini models and Mermaid.js diagrams.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
