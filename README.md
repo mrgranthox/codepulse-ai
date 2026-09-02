@@ -15,8 +15,6 @@
 - [Project Structure](#project-structure)
 - [API Reference](#api-reference)
 - [Testing](#testing)
-- [License](#license)
-- [Open Questions](#open-questions)
 
 ---
 
@@ -259,16 +257,3 @@ npm run lint
 # or
 bun run lint
 ```
-
----
-
-## License
-
-No standalone `LICENSE` file is present in the root of this repository. However, individual source files retain Apache 2.0 license header declarations (`SPDX-License-Identifier: Apache-2.0`).
-
----
-
-## Open Questions
-
-1. **Standalone License File**: Should an explicit `LICENSE` file (such as Apache-2.0) be added to the repository root directory?
-2. **Automated Unit Testing**: Would you like to introduce an automated test runner suite (such as Vitest or Jest) for endpoint and component testing in addition to the existing `npm run lint` type check?
