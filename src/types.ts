@@ -75,6 +75,9 @@ export interface SecurityFinding {
   remediationCode: string;
   remediationSteps: string[];
   cwe?: string;
+  cweRank?: number; // MITRE CWE Top 25 Rank (e.g. 1 for XSS, 2 for SQLi, 3 for CSRF, 4 for Missing Auth, 5 for Out-of-bounds Write)
+  cweBugClass?: string; // e.g. 'Input Neutralization', 'Access & Authorization', 'Memory Safety', 'Cryptography & Secrets', 'Resource Exhaustion'
+  isCweTop25?: boolean;
 }
 
 export interface CodeSmell {

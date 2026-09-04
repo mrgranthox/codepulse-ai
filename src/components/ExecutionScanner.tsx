@@ -7,12 +7,13 @@ import {
   FileCode, 
   CheckCircle2, 
   Terminal, 
-  Sparkles,
-  Zap,
-  Lock,
-  ArrowRight
+  Sparkles, 
+  Zap, 
+  Lock, 
+  ArrowRight 
 } from 'lucide-react';
 import { CodeFile } from '../types';
+import { CodePulseLogo } from './CodePulseLogo';
 
 interface ExecutionScannerProps {
   files: CodeFile[];
@@ -134,40 +135,42 @@ export const ExecutionScanner: React.FC<ExecutionScannerProps> = ({
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 py-4 animate-in fade-in zoom-in-95 duration-500">
       {/* Top Banner: Storyline Step 2 Indicator */}
-      <div className="bg-gradient-to-r from-indigo-950/80 via-slate-900 to-purple-950/80 border border-indigo-500/40 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-        <div className="absolute -top-12 -right-12 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
+      <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-6 shadow-2xl relative overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center shrink-0">
-              <RefreshCw className="w-6 h-6 animate-spin text-indigo-300" />
+          <div className="flex items-center gap-3.5">
+            <div className="shrink-0">
+              <CodePulseLogo size={42} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-indigo-900/80 text-indigo-300 border border-indigo-700/50">
-                  Storyline Step 2 of 7
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-indigo-950/80 text-indigo-300 border border-indigo-500/30">
+                  Step 2 of 5
                 </span>
-                <span className="text-xs text-slate-400 font-mono">
+                <span className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
+                  </span>
                   Live Neural Execution
                 </span>
               </div>
-              <h2 className="text-lg font-bold text-white tracking-tight mt-0.5">
+              <h2 className="text-xl font-bold text-white tracking-tight mt-1">
                 Auditing Codebase: <span className="text-indigo-400 font-mono">{repoName || 'Codebase'}</span>
               </h2>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 text-right">
+          <div className="flex items-center gap-4 text-right">
             <div className="flex flex-col">
-              <span className="text-[10px] text-slate-400 uppercase font-semibold">Analyzed Payload</span>
-              <span className="text-xs font-mono font-bold text-slate-200">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Analyzed Payload</span>
+              <span className="text-xs font-mono font-bold text-slate-200 mt-0.5">
                 {files.length} Files • {files.reduce((a, b) => a + (b.content?.split('\n').length || 0), 0)} LOC
               </span>
             </div>
             <div className="h-8 w-px bg-slate-800"></div>
             <div className="flex flex-col">
-              <span className="text-[10px] text-slate-400 uppercase font-semibold">Engine</span>
-              <span className="text-xs font-mono font-bold text-indigo-400">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Engine</span>
+              <span className="text-xs font-mono font-bold text-indigo-400 mt-0.5">
                 Gemini 3.7 + AST
               </span>
             </div>
@@ -177,15 +180,15 @@ export const ExecutionScanner: React.FC<ExecutionScannerProps> = ({
         {/* Global Progress Bar */}
         <div className="mt-6 space-y-1.5">
           <div className="flex justify-between text-xs font-mono">
-            <span className="text-slate-400 flex items-center gap-1.5">
+            <span className="text-slate-400 flex items-center gap-1.5 font-medium">
               <Zap className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
               <span>{SCAN_STAGES[currentStageIndex]?.title || 'Processing AST...'}</span>
             </span>
-            <span className="text-indigo-300 font-bold">{progressPercent}%</span>
+            <span className="text-indigo-300 font-bold font-mono">{progressPercent}%</span>
           </div>
-          <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800 p-0.5">
+          <div className="w-full bg-[#090D16] h-2.5 rounded-full overflow-hidden border border-slate-800 p-0.5">
             <div 
-              className="bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-400 h-full rounded-full transition-all duration-700 ease-out"
+              className="bg-indigo-500 h-full rounded-full transition-all duration-700 ease-out"
               style={{ width: `${progressPercent}%` }}
             ></div>
           </div>
@@ -195,33 +198,31 @@ export const ExecutionScanner: React.FC<ExecutionScannerProps> = ({
       {/* Main Grid: Multi-Stage Pipeline Progress & Live AST Terminal */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Interactive 6-Stage Pipeline (7 Cols) */}
-        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl space-y-3">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="lg:col-span-7 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 sm:p-6 shadow-xl space-y-3">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
               <Cpu className="w-4 h-4 text-indigo-400" />
               <span>Multi-Pass Execution Pipeline</span>
             </h3>
-            <span className="text-[10px] text-emerald-400 font-mono bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
+            <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-800/50">
               Active Stream
             </span>
           </div>
 
           <div className="space-y-2.5">
             {SCAN_STAGES.map((stage, idx) => {
-              const Icon = stage.icon;
               const isCompleted = idx < currentStageIndex;
               const isCurrent = idx === currentStageIndex;
-              const isPending = idx > currentStageIndex;
 
               return (
                 <div
                   key={stage.id}
-                  className={`p-3 rounded-lg border transition-all flex items-start gap-3 ${
+                  className={`p-3.5 rounded-lg border transition-all duration-200 flex items-start gap-3 ${
                     isCurrent
-                      ? 'bg-indigo-950/30 border-indigo-500/50 shadow-md shadow-indigo-950/30'
+                      ? 'bg-indigo-950/40 border-indigo-500/50 shadow-md shadow-indigo-950/30'
                       : isCompleted
-                      ? 'bg-slate-950/60 border-slate-800 text-slate-300'
-                      : 'bg-slate-950/20 border-slate-850 opacity-40'
+                      ? 'bg-[#090D16] border-slate-800 text-slate-300'
+                      : 'bg-[#090D16]/40 border-slate-800/60 opacity-40'
                   }`}
                 >
                   <div
@@ -229,7 +230,7 @@ export const ExecutionScanner: React.FC<ExecutionScannerProps> = ({
                       isCurrent
                         ? 'bg-indigo-600 text-white animate-pulse'
                         : isCompleted
-                        ? 'bg-emerald-900/60 text-emerald-400 border border-emerald-700/50'
+                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/50'
                         : 'bg-slate-800 text-slate-500'
                     }`}
                   >
@@ -252,17 +253,17 @@ export const ExecutionScanner: React.FC<ExecutionScannerProps> = ({
                         {stage.title}
                       </h4>
                       {isCurrent && (
-                        <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded bg-indigo-900/60 text-indigo-300 animate-pulse">
+                        <span className="text-[9px] font-mono font-bold uppercase px-2 py-0.2 rounded-full bg-indigo-900/60 text-indigo-300 animate-pulse">
                           In Progress
                         </span>
                       )}
                       {isCompleted && (
-                        <span className="text-[9px] font-mono text-emerald-400">
+                        <span className="text-[9px] font-mono font-bold text-emerald-400">
                           Completed
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed mt-0.5">
+                    <p className="text-xs text-slate-400 leading-relaxed mt-1 font-medium">
                       {stage.description}
                     </p>
                   </div>
@@ -275,20 +276,20 @@ export const ExecutionScanner: React.FC<ExecutionScannerProps> = ({
         {/* Right: Live Terminal Stream & Inspected Files (5 Cols) */}
         <div className="lg:col-span-5 flex flex-col gap-4">
           {/* File Payload Manifest */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl">
-            <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-800">
+          <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 shadow-xl">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-800/80">
               <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                 <FileCode className="w-3.5 h-3.5 text-indigo-400" />
                 <span>Files in Current Payload</span>
               </span>
-              <span className="text-[10px] font-mono text-slate-500">{files.length} files</span>
+              <span className="text-xs font-mono text-slate-400 font-semibold">{files.length} files</span>
             </div>
 
             <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
               {files.map((file, i) => (
                 <div 
                   key={file.id || i}
-                  className="flex items-center justify-between px-2.5 py-1.5 rounded bg-[#020617] border border-slate-800/80 text-xs font-mono text-slate-300"
+                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-[#090D16] border border-slate-800 text-xs font-mono text-slate-300"
                 >
                   <span className="truncate max-w-[170px]">{file.name}</span>
                   <span className="text-[10px] text-indigo-400 uppercase font-semibold">
@@ -300,16 +301,19 @@ export const ExecutionScanner: React.FC<ExecutionScannerProps> = ({
           </div>
 
           {/* Live Execution Telemetry Logs */}
-          <div className="flex-1 bg-[#020617] border border-slate-800 rounded-xl p-4 font-mono text-xs flex flex-col shadow-xl">
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-slate-400 text-[11px]">
-              <div className="flex items-center gap-1.5">
+          <div className="flex-1 bg-[#090D16] border border-slate-800 rounded-xl p-5 font-mono text-xs flex flex-col shadow-xl">
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-slate-400 text-xs">
+              <div className="flex items-center gap-1.5 font-semibold">
                 <Terminal className="w-3.5 h-3.5 text-indigo-400" />
                 <span>Audit Telemetry Stream</span>
               </div>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
             </div>
 
-            <div className="flex-1 space-y-1.5 overflow-y-auto text-[11px] leading-relaxed text-slate-300 max-h-56">
+            <div className="flex-1 space-y-1.5 overflow-y-auto text-xs leading-relaxed text-slate-300 max-h-56">
               {terminalLogs.map((log, index) => (
                 <div key={index} className="flex items-start gap-1.5">
                   <span className="text-slate-600 select-none">&gt;</span>

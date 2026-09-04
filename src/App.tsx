@@ -15,12 +15,18 @@ import { ExecutionScanner } from './components/ExecutionScanner';
 import { StorylineStepper } from './components/StorylineStepper';
 import { AuditHistoryDrawer } from './components/AuditHistoryDrawer';
 import { C4SpecModal } from './components/C4SpecModal';
+import { ClearanceConsentModal } from './components/ClearanceConsentModal';
+import { SettingsModal } from './components/SettingsModal';
+import { MemoryPerformanceOverlay } from './components/MemoryPerformanceOverlay';
+import { ThemeProvider } from './context/ThemeContext';
 import { ActiveTab, CodeFile, AuditResult, AuditHistoryItem } from './types';
-import { AlertCircle, CheckCircle2, History } from 'lucide-react';
+import { AlertCircle, CheckCircle2, History, Cpu, Sparkles } from 'lucide-react';
+import { optimizeFileMemory, previewMemoryOptimization, MemoryOptimizationPreview } from './utils/memoryOptimizer';
 
 const STORAGE_KEY = 'codepulse_audit_history_v2';
+const MEMORY_PREF_KEY = 'codepulse_memory_pref_v1';
 
-export default function App() {
+function AppContent() {
   // Always greet user with the clean Upload & Ingestion page first
   const [activeTab, setActiveTab] = useState<ActiveTab>('upload');
   const [repoName, setRepoName] = useState<string>('');
@@ -30,12 +36,22 @@ export default function App() {
   const [files, setFiles] = useState<CodeFile[]>([]);
   const [activeFileIndex, setActiveFileIndex] = useState<number>(0);
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
+  const [previousAuditResult, setPreviousAuditResult] = useState<AuditResult | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [isC4ModalOpen, setIsC4ModalOpen] = useState<boolean>(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isMemoryOverlayOpen, setIsMemoryOverlayOpen] = useState<boolean>(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined);
+  const [isMemoryOptimized, setIsMemoryOptimized] = useState<boolean>(false);
+
+  // Deep-Memory Clearance Consent Modal state
+  const [isClearanceModalOpen, setIsClearanceModalOpen] = useState<boolean>(false);
+  const [memoryPreview, setMemoryPreview] = useState<MemoryOptimizationPreview | null>(null);
+  const [pendingRawFiles, setPendingRawFiles] = useState<CodeFile[] | null>(null);
+  const [pendingAuditData, setPendingAuditData] = useState<AuditResult | null>(null);
 
   // Local Storage Audit History (Only real stored sessions, no mock seed)
   const [auditHistory, setAuditHistory] = useState<AuditHistoryItem[]>(() => {
@@ -60,7 +76,7 @@ export default function App() {
       criticalCount: newResult.summary.severityCounts.critical,
       vulnerabilitiesCount: newResult.summary.totalVulnerabilities,
       codeSmellsCount: newResult.summary.totalCodeSmells,
-      filesCount: scannedFiles.length,
+      filesCount: newResult.scannedFilesCount || scannedFiles.length,
       modelUsed: newResult.modelUsed || 'Gemini 3.7 Flash',
       files: scannedFiles,
       auditResult: newResult
@@ -81,6 +97,14 @@ export default function App() {
   };
 
   const handleLoadSession = (session: AuditHistoryItem) => {
+    // Look up preceding audit in history to provide comparison baseline
+    const sessionIndex = auditHistory.findIndex((item) => item.id === session.id);
+    if (sessionIndex !== -1 && sessionIndex < auditHistory.length - 1) {
+      setPreviousAuditResult(auditHistory[sessionIndex + 1].auditResult);
+    } else {
+      setPreviousAuditResult(null);
+    }
+
     setAuditResult(session.auditResult);
     setRepoName(session.repoName);
     if (session.files && session.files.length > 0) {
@@ -90,19 +114,23 @@ export default function App() {
     setCurrentSessionId(session.id);
     setActiveTab('overview');
     setSuccessToast(`Loaded cached report for "${session.repoName}" (${session.overallScore}% Health)`);
-    setTimeout(() => setSuccessToast(null), 3500);
+    setTimeout(() => setSuccessToast(null), 4000);
   };
 
-  const handleDeleteSession = (id: string) => {
+  const handleDeleteSession = (sessionId: string) => {
     setAuditHistory((prev) => {
-      const updated = prev.filter(item => item.id !== id);
+      const updated = prev.filter((item) => item.id !== sessionId);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       } catch (e) {
-        console.warn(e);
+        console.error(e);
       }
       return updated;
     });
+
+    if (currentSessionId === sessionId) {
+      setCurrentSessionId(undefined);
+    }
   };
 
   const handleClearAllHistory = () => {
@@ -110,22 +138,66 @@ export default function App() {
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch (e) {
-      console.warn(e);
+      console.error(e);
     }
+    setCurrentSessionId(undefined);
     setSuccessToast('All audit history cleared.');
     setTimeout(() => setSuccessToast(null), 3000);
   };
 
+  // Helper to trigger deep-memory clearance consent dialog manually
+  const handleOpenMemoryConsent = () => {
+    const preview = previewMemoryOptimization(files, auditResult);
+    setMemoryPreview(preview);
+    setPendingRawFiles(files);
+    setPendingAuditData(auditResult);
+    setIsClearanceModalOpen(true);
+  };
+
+  // Confirm memory optimization routine (prunes clean files buffers)
+  const handleConfirmOptimize = () => {
+    const rawFilesToClean = pendingRawFiles || files;
+    const currentAudit = pendingAuditData || auditResult;
+    const optResult = optimizeFileMemory(rawFilesToClean, currentAudit);
+    
+    setFiles(optResult.optimizedFiles);
+    setIsMemoryOptimized(true);
+    setIsClearanceModalOpen(false);
+    setPendingRawFiles(null);
+    setPendingAuditData(null);
+
+    setSuccessToast(`Memory optimized: ${optResult.estimatedHeapFreedMb} MB RAM freed (${optResult.cleanFilesCount} clean files pruned, ${optResult.retainedFilesCount} finding files preserved verbatim)`);
+    setTimeout(() => setSuccessToast(null), 5000);
+  };
+
+  // User decides to retain 100% full source in client memory
+  const handleRetainFullSource = () => {
+    if (pendingRawFiles) {
+      setFiles(pendingRawFiles);
+    }
+    setIsClearanceModalOpen(false);
+    setPendingRawFiles(null);
+    setPendingAuditData(null);
+
+    setSuccessToast(`Full source retained: 100% of raw codebase files kept in memory for deep-dive analysis.`);
+    setTimeout(() => setSuccessToast(null), 4000);
+  };
+
+  // Triggered when user initiates audit from UploadSection
   const handleRunAudit = async () => {
     if (files.length === 0) {
-      setErrorMessage('Please upload or provide at least one source file.');
+      setErrorMessage('Please upload or paste at least one source file before running an audit.');
       return;
     }
 
-    // Instantly transition to Storyline Step 2: Execution Scanner
     setIsLoading(true);
-    setActiveTab('execution');
     setErrorMessage(null);
+    setActiveTab('execution'); // Jump to live Storyline Stepper execution view
+
+    // If an audit already exists, store it as the previous comparison baseline
+    if (auditResult) {
+      setPreviousAuditResult(auditResult);
+    }
 
     try {
       const response = await fetch('/api/audit', {
@@ -135,88 +207,142 @@ export default function App() {
           files,
           repoName: repoName || 'Custom Codebase',
           customRules
-        })
+        }),
       });
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || `Server responded with HTTP ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server responded with status ${response.status}`);
       }
 
-      const data: AuditResult = await response.json();
-      setAuditResult(data);
-      saveAuditToHistory(data, files);
+      const auditData: AuditResult = await response.json();
+      setAuditResult(auditData);
 
-      // Smooth transition to Overview Dashboard
-      setTimeout(() => {
-        setIsLoading(false);
-        setActiveTab('overview');
-        setSuccessToast(`Audit successfully completed for ${repoName || 'Codebase'}!`);
-        setTimeout(() => setSuccessToast(null), 4000);
-      }, 800);
+      // Evaluate memory footprint and check session preference
+      const preview = previewMemoryOptimization(files, auditData);
+      setMemoryPreview(preview);
+      const pref = sessionStorage.getItem(MEMORY_PREF_KEY);
+
+      if (pref === 'optimize') {
+        const optResult = optimizeFileMemory(files, auditData);
+        setFiles(optResult.optimizedFiles);
+        setIsMemoryOptimized(true);
+        saveAuditToHistory(auditData, optResult.optimizedFiles);
+        setTimeout(() => {
+          setIsLoading(false);
+          setActiveTab('overview');
+          setSuccessToast(`Audit complete! Auto-cleared ${optResult.cleanFilesCount} clean files (~${optResult.estimatedHeapFreedMb} MB freed)`);
+          setTimeout(() => setSuccessToast(null), 4500);
+        }, 800);
+      } else if (pref === 'retain') {
+        saveAuditToHistory(auditData, files);
+        setTimeout(() => {
+          setIsLoading(false);
+          setActiveTab('overview');
+          setSuccessToast(`Audit complete! 100% full source retained locally.`);
+          setTimeout(() => setSuccessToast(null), 4500);
+        }, 800);
+      } else {
+        // Trigger ClearanceConsent modal if clean files exist
+        setPendingRawFiles(files);
+        setPendingAuditData(auditData);
+        saveAuditToHistory(auditData, files);
+
+        setTimeout(() => {
+          setIsLoading(false);
+          setActiveTab('overview');
+          if (preview.cleanFilesCount > 0) {
+            setIsClearanceModalOpen(true);
+          } else {
+            setSuccessToast(`Audit completed successfully (${auditData.scannedFilesCount || files.length} files scanned)!`);
+            setTimeout(() => setSuccessToast(null), 4500);
+          }
+        }, 800);
+      }
     } catch (err: any) {
       console.error('Audit execution error:', err);
       setIsLoading(false);
       setActiveTab('upload');
-      setErrorMessage(err.message || 'Failed to complete code audit. Please check network/server logs.');
+      setErrorMessage(err.message || 'Failed to complete codebase audit.');
     }
   };
 
-  const handleFetchAndAuditGithub = async (githubUrl: string) => {
+  // GitHub direct fetch & audit
+  const handleFetchAndAuditGithub = async (repoUrl: string, maxFiles: number = 250) => {
     setIsLoading(true);
-    setActiveTab('execution');
     setErrorMessage(null);
+    setActiveTab('execution');
+
+    if (auditResult) {
+      setPreviousAuditResult(auditResult);
+    }
 
     try {
-      // Step 1: Ingest repository files via GitHub API
-      const fetchRes = await fetch('/api/github/fetch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repoUrl: githubUrl, maxFiles: 10 })
-      });
-
-      if (!fetchRes.ok) {
-        const err = await fetchRes.json().catch(() => ({}));
-        throw new Error(err.error || `Failed to fetch GitHub repository (${fetchRes.status})`);
-      }
-
-      const repoData = await fetchRes.json();
-      if (!repoData.files || repoData.files.length === 0) {
-        throw new Error('No source code files found in the specified GitHub repository.');
-      }
-
-      const currentRepoTitle = repoData.repoName || githubUrl;
-      setRepoName(currentRepoTitle);
-      setFiles(repoData.files);
-      setActiveFileIndex(0);
-
-      // Step 2: Automatically trigger deep multi-pass neural audit
-      const auditRes = await fetch('/api/audit', {
+      const response = await fetch('/api/github-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          files: repoData.files,
-          repoName: currentRepoTitle,
+          repoUrl,
+          maxFiles,
           customRules
-        })
+        }),
       });
 
-      if (!auditRes.ok) {
-        const auditErr = await auditRes.json().catch(() => ({}));
-        throw new Error(auditErr.error || `Audit analysis failed (${auditRes.status})`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `GitHub import failed with status ${response.status}`);
       }
 
-      const auditData: AuditResult = await auditRes.json();
-      setAuditResult(auditData);
-      saveAuditToHistory(auditData, repoData.files);
+      const repoData = await response.json();
+      const currentRepoTitle = repoData.repoName || repoUrl.split('/').slice(-2).join('/');
+      setRepoName(currentRepoTitle);
 
-      // Smooth transition to Step 3 Overview Dashboard
-      setTimeout(() => {
-        setIsLoading(false);
-        setActiveTab('overview');
-        setSuccessToast(`Successfully imported & audited "${currentRepoTitle}" (${repoData.files.length} files)!`);
-        setTimeout(() => setSuccessToast(null), 4000);
-      }, 800);
+      const auditData: AuditResult = repoData.auditResult;
+      setAuditResult(auditData);
+
+      // Evaluate memory footprint and check session preference
+      const preview = previewMemoryOptimization(repoData.files, auditData);
+      setMemoryPreview(preview);
+      const pref = sessionStorage.getItem(MEMORY_PREF_KEY);
+
+      if (pref === 'optimize') {
+        const optResult = optimizeFileMemory(repoData.files, auditData);
+        setFiles(optResult.optimizedFiles);
+        setIsMemoryOptimized(true);
+        saveAuditToHistory(auditData, optResult.optimizedFiles);
+        setTimeout(() => {
+          setIsLoading(false);
+          setActiveTab('overview');
+          setSuccessToast(`Imported "${currentRepoTitle}" & auto-pruned ${optResult.cleanFilesCount} clean files (~${optResult.estimatedHeapFreedMb} MB RAM freed)`);
+          setTimeout(() => setSuccessToast(null), 4500);
+        }, 800);
+      } else if (pref === 'retain') {
+        setFiles(repoData.files);
+        saveAuditToHistory(auditData, repoData.files);
+        setTimeout(() => {
+          setIsLoading(false);
+          setActiveTab('overview');
+          setSuccessToast(`Successfully imported & audited "${currentRepoTitle}" (100% full source retained locally)!`);
+          setTimeout(() => setSuccessToast(null), 4500);
+        }, 800);
+      } else {
+        // Trigger ClearanceConsent modal if clean files exist, preserving raw source in client memory
+        setPendingRawFiles(repoData.files);
+        setPendingAuditData(auditData);
+        setFiles(repoData.files);
+        saveAuditToHistory(auditData, repoData.files);
+
+        setTimeout(() => {
+          setIsLoading(false);
+          setActiveTab('overview');
+          if (preview.cleanFilesCount > 0) {
+            setIsClearanceModalOpen(true);
+          } else {
+            setSuccessToast(`Successfully imported & audited "${currentRepoTitle}" (${auditData.scannedFilesCount || repoData.files.length} files scanned)!`);
+            setTimeout(() => setSuccessToast(null), 4500);
+          }
+        }, 800);
+      }
     } catch (err: any) {
       console.error('GitHub ingestion error:', err);
       setIsLoading(false);
@@ -226,7 +352,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col selection:bg-indigo-500/30 selection:text-indigo-200">
+    <div className="min-h-screen bg-[#090D16] dark:bg-[#090D16] light:bg-slate-50 text-slate-100 dark:text-slate-100 light:text-slate-800 flex flex-col selection:bg-indigo-500/30 selection:text-indigo-200">
       {/* Top Header */}
       <Header
         activeTab={activeTab}
@@ -238,6 +364,9 @@ export default function App() {
         hasFiles={files.length > 0}
         onOpenHistory={() => setIsHistoryOpen(true)}
         historyCount={auditHistory.length}
+        onOpenSpec={() => setIsC4ModalOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenMemory={() => setIsMemoryOverlayOpen(true)}
       />
 
       {/* Toast Notifications */}
@@ -262,7 +391,7 @@ export default function App() {
       )}
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6">
         {/* Storyline Stepper Navigation (Only shown in Extended Workspace) */}
         {activeTab !== 'upload' && activeTab !== 'execution' && (
           <StorylineStepper
@@ -301,10 +430,14 @@ export default function App() {
         {activeTab === 'overview' && (
           <OverviewDashboard
             auditResult={auditResult}
+            previousAuditResult={previousAuditResult}
             setActiveTab={setActiveTab}
             onReAudit={handleRunAudit}
             isLoading={isLoading}
             onOpenHistory={() => setIsHistoryOpen(true)}
+            onOpenSpec={() => setIsC4ModalOpen(true)}
+            onOpenMemoryConsent={handleOpenMemoryConsent}
+            onOpenMemoryOverlay={() => setIsMemoryOverlayOpen(true)}
           />
         )}
 
@@ -325,7 +458,17 @@ export default function App() {
         {activeTab === 'refactoring' && (
           <RefactoringView 
             smells={auditResult?.codeSmells || []} 
+            securityFindings={auditResult?.securityAudit || []}
+            files={files}
+            auditResult={auditResult}
             onNavigate={setActiveTab}
+            onUpdateFileContent={(filePath, newContent) => {
+              setFiles((prev) =>
+                prev.map((f) =>
+                  f.path === filePath || f.name === filePath ? { ...f, content: newContent } : f
+                )
+              );
+            }}
           />
         )}
 
@@ -351,15 +494,58 @@ export default function App() {
       {/* C4 Engineering Specification Modal */}
       <C4SpecModal isOpen={isC4ModalOpen} onClose={() => setIsC4ModalOpen(false)} />
 
+      {/* Deep-Memory Clearance Consent Modal */}
+      <ClearanceConsentModal
+        isOpen={isClearanceModalOpen}
+        onClose={() => setIsClearanceModalOpen(false)}
+        preview={memoryPreview}
+        repoName={repoName}
+        onConfirmOptimize={handleConfirmOptimize}
+        onRetainFullSource={handleRetainFullSource}
+      />
+
+      {/* D3.js Heap Memory Performance & Lifecycle Analytics Overlay */}
+      <MemoryPerformanceOverlay
+        isOpen={isMemoryOverlayOpen}
+        onClose={() => setIsMemoryOverlayOpen(false)}
+        auditResult={auditResult}
+        files={files}
+        onTriggerOptimization={handleConfirmOptimize}
+        isOptimized={isMemoryOptimized}
+      />
+
+      {/* Enterprise System Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onClearHistory={handleClearAllHistory}
+        historyCount={auditHistory.length}
+      />
+
       {/* Subtle Enterprise Footer */}
-      <footer className="border-t border-slate-800 bg-[#020617] py-4 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400">
+      <footer className="border-t border-slate-800/80 dark:border-slate-800/80 light:border-slate-200 bg-[#090D16] dark:bg-[#090D16] light:bg-slate-100 py-4 mt-auto">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-300">CodePulse AI</span>
+            <span className="font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700">CodePulse AI</span>
             <span>•</span>
             <span>Zero-Trust Enterprise Architecture & Security Engine</span>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsMemoryOverlayOpen(true)}
+              className="text-slate-400 hover:text-emerald-400 flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              <Cpu className="w-3 h-3 text-emerald-400" />
+              <span>Heap Telemetry (D3)</span>
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="text-slate-400 hover:text-indigo-400 flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              <span>Settings</span>
+            </button>
+            <span>•</span>
             <button
               onClick={() => setIsHistoryOpen(true)}
               className="text-slate-400 hover:text-indigo-400 flex items-center gap-1 transition-colors cursor-pointer"
@@ -370,9 +556,9 @@ export default function App() {
             <span>•</span>
             <button
               onClick={() => setIsC4ModalOpen(true)}
-              className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
+              className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer flex items-center gap-1"
             >
-              C4 Specification
+              <span>Spec & Addendum (Sec 1–14)</span>
             </button>
             <span>•</span>
             <span>Gemini 3.7 Flash</span>
@@ -380,5 +566,13 @@ export default function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
