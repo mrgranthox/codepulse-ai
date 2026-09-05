@@ -139,7 +139,7 @@ export const ExecutionScanner: React.FC<ExecutionScannerProps> = ({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="shrink-0">
-              <CodePulseLogo size={42} />
+              <CodePulseLogo size={48} useAnimation={true} />
             </div>
             <div>
               <div className="flex items-center gap-2">

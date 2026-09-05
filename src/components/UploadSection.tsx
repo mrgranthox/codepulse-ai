@@ -23,7 +23,8 @@ import {
   ChevronDown,
   ChevronUp,
   Lock,
-  Layers
+  Layers,
+  Settings as SettingsIcon
 } from 'lucide-react';
 import { CodeFile, AuditResult } from '../types';
 import { CodePulseLogo } from './CodePulseLogo';
@@ -41,6 +42,7 @@ interface UploadSectionProps {
   customRules: string;
   setCustomRules: (rules: string) => void;
   auditResult: AuditResult | null;
+  onOpenSettings?: () => void;
 }
 
 export const UploadSection: React.FC<UploadSectionProps> = ({
@@ -55,7 +57,8 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
   setRepoName,
   customRules,
   setCustomRules,
-  auditResult
+  auditResult,
+  onOpenSettings
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -191,12 +194,27 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
           <CodePulseLogo size={54} />
         </div>
 
-        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-indigo-950/80 border border-indigo-500/30 text-indigo-300 text-xs font-semibold tracking-wide shadow-sm">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
-          </span>
-          <span>Zero-Trust Enterprise Neural Auditor</span>
+        <div className="flex items-center gap-2 flex-wrap justify-center">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-indigo-950/80 border border-indigo-500/30 text-indigo-300 text-xs font-semibold tracking-wide shadow-sm">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
+            </span>
+            <span>Zero-Trust Enterprise Neural Auditor</span>
+          </div>
+
+          {onOpenSettings && (
+            <button
+              type="button"
+              id="upload-settings-button"
+              onClick={onOpenSettings}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white text-xs font-medium cursor-pointer transition-all shadow-sm"
+              title="Open Enterprise Settings (Theme, Memory, Security Frameworks, Engine)"
+            >
+              <SettingsIcon className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Settings & Themes</span>
+            </button>
+          )}
         </div>
 
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-[1.15]">
@@ -216,7 +234,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
             onClick={() => setIngestMode('github')}
             className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer min-h-[44px] ${
               ingestMode === 'github'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 border border-indigo-400/30'
+                ? 'bg-indigo-600 text-white font-bold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
           >
@@ -229,7 +247,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
             onClick={() => setIngestMode('upload')}
             className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer min-h-[44px] ${
               ingestMode === 'upload'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 border border-indigo-400/30'
+                ? 'bg-indigo-600 text-white font-bold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
           >
@@ -250,7 +268,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
             }}
             className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer min-h-[44px] ${
               ingestMode === 'paste'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 border border-indigo-400/30'
+                ? 'bg-indigo-600 text-white font-bold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
           >
@@ -274,7 +292,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                   type="text"
                   value={githubUrl}
                   onChange={(e) => setGithubUrl(e.target.value)}
-                  placeholder="https://github.com/vulnerable-apps/juice-shop or expressjs/express"
+                  placeholder="https://github.com/juice-shop/juice-shop or expressjs/express"
                   className="w-full pl-10 pr-4 py-3 bg-[#0B0F17] border border-slate-800 focus:border-indigo-500 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none font-mono transition-colors shadow-inner"
                   autoFocus
                 />
@@ -286,7 +304,8 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                 <span className="text-[11px] font-semibold text-slate-400">Test Presets:</span>
                 <button
                   type="button"
-                  onClick={() => setGithubUrl('https://github.com/vulnerable-apps/juice-shop')}
+                  id="preset-juice-shop"
+                  onClick={() => setGithubUrl('https://github.com/juice-shop/juice-shop')}
                   className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer"
                 >
                   OWASP Juice Shop
@@ -373,10 +392,10 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
             <button
               type="submit"
               disabled={isLoading || isFetchingGithub || !githubUrl.trim()}
-              className={`w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-lg text-sm font-bold shadow-xl shadow-indigo-600/25 border border-indigo-400/30 transition-all duration-200 ${
+              className={`w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-lg text-sm font-semibold transition-colors duration-150 ${
                 isLoading || isFetchingGithub || !githubUrl.trim()
                   ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                  : 'bg-indigo-600 hover:bg-indigo-500 text-white hover:-translate-y-0.5 active:scale-98 cursor-pointer'
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer'
               }`}
             >
               {isFetchingGithub || isLoading ? (
@@ -505,10 +524,10 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
               type="button"
               onClick={onRunAudit}
               disabled={isLoading || files.length === 0}
-              className={`w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-lg text-sm font-bold shadow-xl shadow-indigo-600/25 border border-indigo-400/30 transition-all duration-200 ${
+              className={`w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-lg text-sm font-semibold transition-colors duration-150 ${
                 isLoading || files.length === 0
                   ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                  : 'bg-indigo-600 hover:bg-indigo-500 text-white hover:-translate-y-0.5 active:scale-98 cursor-pointer'
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer'
               }`}
             >
               {isLoading ? (
@@ -598,10 +617,10 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
               type="button"
               onClick={onRunAudit}
               disabled={isLoading || !activeFile?.content.trim()}
-              className={`w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-lg text-sm font-bold shadow-xl shadow-indigo-600/25 border border-indigo-400/30 transition-all duration-200 ${
+              className={`w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-lg text-sm font-semibold transition-colors duration-150 ${
                 isLoading || !activeFile?.content.trim()
                   ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                  : 'bg-indigo-600 hover:bg-indigo-500 text-white hover:-translate-y-0.5 active:scale-98 cursor-pointer'
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer'
               }`}
             >
               {isLoading ? (

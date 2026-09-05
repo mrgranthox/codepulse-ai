@@ -417,6 +417,7 @@ function AppContent() {
             customRules={customRules}
             setCustomRules={setCustomRules}
             auditResult={auditResult}
+            onOpenSettings={() => setIsSettingsOpen(true)}
           />
         )}
 
@@ -438,6 +439,7 @@ function AppContent() {
             onOpenSpec={() => setIsC4ModalOpen(true)}
             onOpenMemoryConsent={handleOpenMemoryConsent}
             onOpenMemoryOverlay={() => setIsMemoryOverlayOpen(true)}
+            isMemoryOptimized={isMemoryOptimized}
           />
         )}
 

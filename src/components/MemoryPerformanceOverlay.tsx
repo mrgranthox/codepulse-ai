@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { AuditResult, CodeFile } from '../types';
 import { previewMemoryOptimization } from '../utils/memoryOptimizer';
+import { useTheme } from '../context/ThemeContext';
 
 interface MemoryPerformanceOverlayProps {
   isOpen: boolean;
@@ -44,6 +45,7 @@ export const MemoryPerformanceOverlay: React.FC<MemoryPerformanceOverlayProps> =
   onTriggerOptimization,
   isOptimized = false
 }) => {
+  const { isDark } = useTheme();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [selectedPoint, setSelectedPoint] = useState<MemoryDataPoint | null>(null);
@@ -165,7 +167,7 @@ export const MemoryPerformanceOverlay: React.FC<MemoryPerformanceOverlayProps> =
       .attr('class', 'grid')
       .call(yAxisGrid)
       .selectAll('line')
-      .attr('stroke', 'rgba(148, 163, 184, 0.1)')
+      .attr('stroke', isDark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(100, 116, 139, 0.2)')
       .attr('stroke-dasharray', '2,2');
 
     g.selectAll('.grid .domain').remove();
@@ -216,22 +218,24 @@ export const MemoryPerformanceOverlay: React.FC<MemoryPerformanceOverlayProps> =
       .ticks(5)
       .tickFormat(d => `${d} MB`);
 
+    const axisTextColor = isDark ? '#94A3B8' : '#475569';
+
     g.append('g')
       .attr('transform', `translate(0,${chartHeight})`)
       .call(xAxis)
-      .attr('color', '#64748B')
+      .attr('color', isDark ? '#475569' : '#94A3B8')
       .selectAll('text')
       .attr('font-size', '10px')
       .attr('font-family', 'JetBrains Mono, monospace')
-      .attr('fill', '#94A3B8');
+      .attr('fill', axisTextColor);
 
     g.append('g')
       .call(yAxis)
-      .attr('color', '#64748B')
+      .attr('color', isDark ? '#475569' : '#94A3B8')
       .selectAll('text')
       .attr('font-size', '10px')
       .attr('font-family', 'JetBrains Mono, monospace')
-      .attr('fill', '#94A3B8');
+      .attr('fill', axisTextColor);
 
     // Data Points & Interactive Circles
     const dots = g.selectAll('.dot')
@@ -244,7 +248,7 @@ export const MemoryPerformanceOverlay: React.FC<MemoryPerformanceOverlayProps> =
     dots.append('circle')
       .attr('r', 5)
       .attr('fill', d => d.color)
-      .attr('stroke', '#090D16')
+      .attr('stroke', isDark ? '#090D16' : '#FFFFFF')
       .attr('stroke-width', 2)
       .attr('cursor', 'pointer')
       .on('mouseenter', (_, d) => setSelectedPoint(d));

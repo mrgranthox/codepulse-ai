@@ -16,8 +16,6 @@
     </filter>
   </defs>
 
-  <rect width="100" height="100" rx="22" fill="#090D16" />
-
   <!-- Outer Stylized 'C' Ring -->
   <path
     d="M 72 23

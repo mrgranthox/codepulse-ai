@@ -1,9 +1,12 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
+import v8 from 'v8';
 import { GoogleGenAI, Type } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
+import { getCWETop25Entry, isCWETop25, getCWETop25Rank } from './src/utils/cweTop25';
 
 dotenv.config();
 
@@ -161,12 +164,29 @@ function parseGithubUrl(rawUrl: string): { owner: string; repo: string; branch?:
     const parts = parsed.pathname.split('/').filter(Boolean);
     if (parts.length < 2) return null;
 
-    const owner = parts[0];
-    const repo = parts[1];
+    let owner = parts[0];
+    let repo = parts[1];
     let branch: string | undefined = undefined;
     let subpath: string | undefined = undefined;
 
-    if (parts[2] === 'tree' && parts[3]) {
+    // Automatic migration & alias resolution for moved repositories
+    const repoAliases: Record<string, { owner: string; repo: string; branch?: string }> = {
+      'bkimminich/juice-shop': { owner: 'juice-shop', repo: 'juice-shop', branch: 'master' },
+      'vulnerable-apps/juice-shop': { owner: 'juice-shop', repo: 'juice-shop', branch: 'master' },
+      'owasp/juice-shop': { owner: 'juice-shop', repo: 'juice-shop', branch: 'master' },
+    };
+
+    const key = `${owner.toLowerCase()}/${repo.toLowerCase()}`;
+    if (repoAliases[key]) {
+      const aliasTarget = repoAliases[key];
+      owner = aliasTarget.owner;
+      repo = aliasTarget.repo;
+      if (!branch && aliasTarget.branch) {
+        branch = aliasTarget.branch;
+      }
+    }
+
+    if ((parts[2] === 'tree' || parts[2] === 'blob') && parts[3]) {
       branch = parts[3];
       if (parts.length > 4) {
         subpath = parts.slice(4).join('/');
@@ -179,219 +199,332 @@ function parseGithubUrl(rawUrl: string): { owner: string; repo: string; branch?:
   }
 }
 
+// Map findings to MITRE CWE Top 25 (2025) official taxonomy
+function enrichWithCweMetadata(finding: any): any {
+  if (!finding) return finding;
+  const rawCwe = finding.cwe ? String(finding.cwe).trim().toUpperCase() : '';
+  const match = rawCwe.match(/CWE-(\d+)/i);
+  const cweKey = match ? `CWE-${match[1]}` : (rawCwe || 'CWE-OTHER');
+  
+  const entry = getCWETop25Entry(cweKey);
+  if (entry) {
+    finding.cwe = entry.cweId;
+    finding.isCweTop25 = true;
+    finding.cweRank = entry.rank;
+    finding.cweName = entry.shortName || entry.name;
+    finding.cweScore = entry.score;
+  } else {
+    // Map closely related sub-weaknesses or child CWEs to their parent Top 25 rank
+    if (cweKey === 'CWE-639') {
+      // Insecure Direct Object Reference (BOLA / IDOR) maps to CWE-862 (Missing Authorization, Rank 4)
+      finding.isCweTop25 = true;
+      finding.cweRank = 4;
+      finding.cweName = 'Missing Authorization (IDOR / BOLA)';
+      finding.cweScore = 38.64;
+    } else if (cweKey === 'CWE-328' || cweKey === 'CWE-330') {
+      // Weak cryptography / PRNG maps to CWE-327 (Broken Crypto, Rank 24)
+      finding.isCweTop25 = true;
+      finding.cweRank = 24;
+      finding.cweName = 'Broken or Risky Cryptographic Algorithm';
+      finding.cweScore = 9.2;
+    } else if (cweKey === 'CWE-209' || cweKey === 'CWE-532') {
+      // Sensitive info exposure / stack trace in logs maps to CWE-200 (Rank 23)
+      finding.isCweTop25 = true;
+      finding.cweRank = 23;
+      finding.cweName = 'Exposure of Sensitive Information';
+      finding.cweScore = 9.8;
+    } else if (cweKey === 'CWE-915') {
+      // Mass Assignment is broken authorization CWE-862
+      finding.isCweTop25 = true;
+      finding.cweRank = 4;
+      finding.cweName = 'Improper Authorization / Mass Assignment';
+      finding.cweScore = 38.64;
+    } else {
+      finding.isCweTop25 = false;
+    }
+  }
+  return finding;
+}
+
+// Internal reusable GitHub repository fetcher with high-speed tree download and branch/file fallback
+async function fetchGithubRepoFilesInternal(repoUrl: string, requestedMax: number = 250): Promise<{
+  repoName: string;
+  branch: string;
+  totalFilesInRepo: number;
+  scannedCandidatesCount: number;
+  files: any[];
+}> {
+  const maxFiles = Math.min(Math.max(requestedMax, 10), 1000);
+  const parsed = parseGithubUrl(repoUrl);
+  if (!parsed) {
+    const err: any = new Error('Invalid GitHub URL format. Please provide a valid repository URL (e.g. "https://github.com/owner/repo" or "owner/repo").');
+    err.status = 400;
+    throw err;
+  }
+
+  let { owner, repo, subpath } = parsed;
+  let targetBranch = parsed.branch;
+
+  const headers: Record<string, string> = {
+    'User-Agent': 'CodePulse-Architect-Auditor/2.0',
+    'Accept': 'application/vnd.github.v3+json'
+  };
+  if (process.env.GITHUB_TOKEN) {
+    headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+  }
+
+  // 1. Fetch Repository Metadata to determine default branch if not specified
+  if (!targetBranch) {
+    try {
+      const repoMetaRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+      if (repoMetaRes.ok) {
+        const repoMeta = (await repoMetaRes.json()) as any;
+        targetBranch = repoMeta.default_branch || 'main';
+      } else if (repoMetaRes.status === 404) {
+        // Intelligent fallback: check if repo was moved or if name matches known public repository
+        if (repo.toLowerCase() === 'juice-shop') {
+          owner = 'juice-shop';
+          repo = 'juice-shop';
+          targetBranch = 'master';
+        } else {
+          // Attempt fallback search on GitHub Search API to resolve renamed or transferred repos
+          let resolved = false;
+          try {
+            const searchRes = await fetch(
+              `https://api.github.com/search/repositories?q=${encodeURIComponent(repo)}+in:name&per_page=1`,
+              { headers }
+            );
+            if (searchRes.ok) {
+              const searchData = (await searchRes.json()) as any;
+              if (
+                searchData.items &&
+                searchData.items.length > 0 &&
+                searchData.items[0].name.toLowerCase() === repo.toLowerCase()
+              ) {
+                owner = searchData.items[0].owner.login;
+                repo = searchData.items[0].name;
+                targetBranch = searchData.items[0].default_branch || 'main';
+                resolved = true;
+              }
+            }
+          } catch {}
+
+          if (!resolved) {
+            const err: any = new Error(`Repository "${owner}/${repo}" was not found or is private.`);
+            err.status = 404;
+            throw err;
+          }
+        }
+      } else {
+        targetBranch = 'main';
+      }
+    } catch (e: any) {
+      if (e.status === 404) throw e;
+      targetBranch = 'main';
+    }
+  }
+
+  // 2. Fetch Git Tree recursively
+  let treeRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/git/trees/${targetBranch}?recursive=1`,
+    { headers }
+  );
+
+  // If main fails, try master if branch wasn't explicitly pinned
+  if (!treeRes.ok && !parsed.branch && targetBranch === 'main') {
+    targetBranch = 'master';
+    treeRes = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/git/trees/${targetBranch}?recursive=1`,
+      { headers }
+    );
+  }
+
+  let treeItems: any[] = [];
+  if (treeRes.ok) {
+    const treeData = (await treeRes.json()) as any;
+    if (Array.isArray(treeData.tree)) {
+      treeItems = treeData.tree;
+    }
+  }
+
+  // Filter valid source code candidate files
+  const validCandidates = treeItems.filter((item) => {
+    if (item.type !== 'blob') return false;
+    const filePath: string = item.path;
+    if (!filePath) return false;
+
+    if (subpath && !filePath.startsWith(subpath)) return false;
+
+    const lower = filePath.toLowerCase();
+    if (IGNORED_PATHS.some((p) => lower.startsWith(p) || lower.includes(`/${p}`))) return false;
+
+    const baseName = path.basename(lower);
+    if (IGNORED_FILENAMES.has(baseName)) return false;
+
+    const ext = path.extname(lower);
+    if (IGNORED_EXTENSIONS.has(ext)) return false;
+
+    // Filter out files larger than 600KB in candidate tree to prevent payload bloat
+    if (item.size && item.size > 600000) return false;
+
+    return true;
+  });
+
+  if (validCandidates.length === 0) {
+    // If git tree API failed (e.g. rate limit 403), attempt direct fallback fetching of standard entrypoints
+    const fallbackFilesToTry = [
+      'package.json',
+      'src/index.ts',
+      'src/main.tsx',
+      'src/App.tsx',
+      'src/index.js',
+      'server.ts',
+      'server.js',
+      'main.py',
+      'app.py',
+      'src/main.rs',
+      'main.go',
+      'go.mod',
+      'Cargo.toml',
+      'README.md'
+    ];
+
+    const probedFiles: any[] = [];
+    await Promise.all(
+      fallbackFilesToTry.map(async (testPath) => {
+        try {
+          const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${targetBranch}/${testPath}`;
+          const r = await fetch(rawUrl);
+          if (r.ok) {
+            const text = await r.text();
+            if (text && text.trim().length > 0 && !text.startsWith('<!DOCTYPE html>')) {
+              probedFiles.push({
+                id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                name: path.basename(testPath),
+                path: testPath,
+                language: detectLanguage(testPath),
+                content: scrubSecrets(text),
+                size: text.length
+              });
+            }
+          }
+        } catch {}
+      })
+    );
+
+    if (probedFiles.length > 0) {
+      return {
+        repoName: `${owner}/${repo}`,
+        branch: targetBranch || 'main',
+        totalFilesInRepo: probedFiles.length,
+        scannedCandidatesCount: probedFiles.length,
+        files: probedFiles
+      };
+    }
+
+    const err: any = new Error(`Could not retrieve source files from "${owner}/${repo}". The repository may be private, empty, or rate-limited. You can also drag & drop or paste your files directly.`);
+    err.status = 422;
+    throw err;
+  }
+
+  // Prioritize key directories across all levels (routes, controllers, services, lib, models, core, api, config)
+  const prioritizedCandidates = validCandidates
+    .sort((a, b) => {
+      const aIsKey = /^(routes|lib|app|core|services|controllers|models|api|server|src|db|middleware)/i.test(a.path);
+      const bIsKey = /^(routes|lib|app|core|services|controllers|models|api|server|src|db|middleware)/i.test(b.path);
+      if (aIsKey && !bIsKey) return -1;
+      if (!aIsKey && bIsKey) return 1;
+      return 0;
+    })
+    .slice(0, maxFiles);
+
+  // Fetch contents concurrently in high-speed batches of 25
+  const fetchedFiles: any[] = [];
+  const batchSize = 25;
+
+  for (let i = 0; i < prioritizedCandidates.length; i += batchSize) {
+    const batch = prioritizedCandidates.slice(i, i + batchSize);
+    const batchResults = await Promise.all(
+      batch.map(async (candidate) => {
+        try {
+          const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${targetBranch}/${candidate.path}`;
+          const fileRes = await fetch(rawUrl);
+          if (fileRes.ok) {
+            const content = await fileRes.text();
+            if (content && !content.startsWith('<!DOCTYPE html>')) {
+              return {
+                id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                name: path.basename(candidate.path),
+                path: candidate.path,
+                language: detectLanguage(candidate.path),
+                content: scrubSecrets(content),
+                size: content.length
+              };
+            }
+          }
+          return null;
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    batchResults.forEach((res) => {
+      if (res) fetchedFiles.push(res);
+    });
+  }
+
+  if (fetchedFiles.length === 0) {
+    const err: any = new Error(`No readable text/source code files could be downloaded from "${owner}/${repo}".`);
+    err.status = 422;
+    throw err;
+  }
+
+  return {
+    repoName: `${owner}/${repo}`,
+    branch: targetBranch || 'main',
+    totalFilesInRepo: validCandidates.length,
+    scannedCandidatesCount: fetchedFiles.length,
+    files: fetchedFiles
+  };
+}
+
 // ---------------------------------------------------------
-// GITHUB INGESTION ENDPOINT
+// GITHUB INGESTION ENDPOINTS
 // ---------------------------------------------------------
 app.post('/api/github/fetch', async (req: Request, res: Response) => {
   try {
     const requestedMax = Number(req.body.maxFiles) || 250;
-    const maxFiles = Math.min(Math.max(requestedMax, 10), 1000);
     const { repoUrl } = req.body;
     if (!repoUrl) {
       return res.status(400).json({ error: 'GitHub repository URL is required.' });
     }
-
-    const parsed = parseGithubUrl(repoUrl);
-    if (!parsed) {
-      return res.status(400).json({
-        error: 'Invalid GitHub URL format. Please provide a valid repository URL (e.g. "https://github.com/owner/repo" or "owner/repo").'
-      });
-    }
-
-    const { owner, repo, subpath } = parsed;
-    let targetBranch = parsed.branch;
-
-    const headers: Record<string, string> = {
-      'User-Agent': 'CodePulse-Architect-Auditor/2.0',
-      'Accept': 'application/vnd.github.v3+json'
-    };
-    if (process.env.GITHUB_TOKEN) {
-      headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
-    }
-
-    // 1. Fetch Repository Metadata to determine default branch if not specified
-    if (!targetBranch) {
-      try {
-        const repoMetaRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
-        if (repoMetaRes.ok) {
-          const repoMeta = (await repoMetaRes.json()) as any;
-          targetBranch = repoMeta.default_branch || 'main';
-        } else if (repoMetaRes.status === 404) {
-          return res.status(404).json({ error: `Repository "${owner}/${repo}" was not found or is private.` });
-        } else {
-          targetBranch = 'main';
-        }
-      } catch {
-        targetBranch = 'main';
-      }
-    }
-
-    // 2. Fetch Git Tree recursively
-    let treeRes = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/git/trees/${targetBranch}?recursive=1`,
-      { headers }
-    );
-
-    // If main fails, try master if branch wasn't explicitly pinned
-    if (!treeRes.ok && !parsed.branch && targetBranch === 'main') {
-      targetBranch = 'master';
-      treeRes = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/git/trees/${targetBranch}?recursive=1`,
-        { headers }
-      );
-    }
-
-    let treeItems: any[] = [];
-    if (treeRes.ok) {
-      const treeData = (await treeRes.json()) as any;
-      if (Array.isArray(treeData.tree)) {
-        treeItems = treeData.tree;
-      }
-    }
-
-    // Filter valid source code candidate files
-    const validCandidates = treeItems.filter((item) => {
-      if (item.type !== 'blob') return false;
-      const filePath: string = item.path;
-      if (!filePath) return false;
-
-      if (subpath && !filePath.startsWith(subpath)) return false;
-
-      const lower = filePath.toLowerCase();
-      if (IGNORED_PATHS.some((p) => lower.startsWith(p) || lower.includes(`/${p}`))) return false;
-
-      const baseName = path.basename(lower);
-      if (IGNORED_FILENAMES.has(baseName)) return false;
-
-      const ext = path.extname(lower);
-      if (IGNORED_EXTENSIONS.has(ext)) return false;
-
-      // Filter out files larger than 600KB in candidate tree to prevent payload bloat
-      if (item.size && item.size > 600000) return false;
-
-      return true;
-    });
-
-    if (validCandidates.length === 0) {
-      // If git tree API failed (e.g. rate limit 403), attempt direct fallback fetching of standard entrypoints
-      const fallbackFilesToTry = [
-        'package.json',
-        'src/index.ts',
-        'src/main.tsx',
-        'src/App.tsx',
-        'src/index.js',
-        'server.ts',
-        'server.js',
-        'main.py',
-        'app.py',
-        'src/main.rs',
-        'main.go',
-        'go.mod',
-        'Cargo.toml',
-        'README.md'
-      ];
-
-      const probedFiles: any[] = [];
-      await Promise.all(
-        fallbackFilesToTry.map(async (testPath) => {
-          try {
-            const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${targetBranch}/${testPath}`;
-            const r = await fetch(rawUrl);
-            if (r.ok) {
-              const text = await r.text();
-              if (text && text.trim().length > 0 && !text.startsWith('<!DOCTYPE html>')) {
-                probedFiles.push({
-                  id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                  name: path.basename(testPath),
-                  path: testPath,
-                  language: detectLanguage(testPath),
-                  content: scrubSecrets(text),
-                  size: text.length
-                });
-              }
-            }
-          } catch {}
-        })
-      );
-
-      if (probedFiles.length > 0) {
-        return res.json({
-          repoName: `${owner}/${repo}`,
-          branch: targetBranch,
-          totalFilesInRepo: probedFiles.length,
-          scannedCandidatesCount: probedFiles.length,
-          files: probedFiles
-        });
-      }
-
-      return res.status(422).json({
-        error: `Could not retrieve source files from "${owner}/${repo}". The repository may be private, empty, or rate-limited. You can also drag & drop or paste your files directly.`
-      });
-    }
-
-    // Prioritize key directories across all levels (routes, controllers, services, lib, models, core, api, config)
-    const prioritizedCandidates = validCandidates
-      .sort((a, b) => {
-        const aIsKey = /^(routes|lib|app|core|services|controllers|models|api|server|src|db|middleware)/i.test(a.path);
-        const bIsKey = /^(routes|lib|app|core|services|controllers|models|api|server|src|db|middleware)/i.test(b.path);
-        if (aIsKey && !bIsKey) return -1;
-        if (!aIsKey && bIsKey) return 1;
-        return 0;
-      })
-      .slice(0, maxFiles);
-
-    // Fetch contents concurrently in high-speed batches of 25
-    const fetchedFiles: any[] = [];
-    const batchSize = 25;
-
-    for (let i = 0; i < prioritizedCandidates.length; i += batchSize) {
-      const batch = prioritizedCandidates.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(async (candidate) => {
-          try {
-            const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${targetBranch}/${candidate.path}`;
-            const fileRes = await fetch(rawUrl);
-            if (fileRes.ok) {
-              const content = await fileRes.text();
-              if (content && !content.startsWith('<!DOCTYPE html>')) {
-                return {
-                  id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                  name: path.basename(candidate.path),
-                  path: candidate.path,
-                  language: detectLanguage(candidate.path),
-                  content: scrubSecrets(content),
-                  size: content.length
-                };
-              }
-            }
-            return null;
-          } catch {
-            return null;
-          }
-        })
-      );
-
-      batchResults.forEach((res) => {
-        if (res) fetchedFiles.push(res);
-      });
-    }
-
-    if (fetchedFiles.length === 0) {
-      return res.status(422).json({
-        error: `No readable text/source code files could be downloaded from "${owner}/${repo}".`
-      });
-    }
-
-    return res.json({
-      repoName: `${owner}/${repo}`,
-      branch: targetBranch,
-      totalFilesInRepo: validCandidates.length,
-      scannedCandidatesCount: fetchedFiles.length,
-      files: fetchedFiles
-    });
+    const result = await fetchGithubRepoFilesInternal(repoUrl, requestedMax);
+    return res.json(result);
   } catch (err: any) {
     console.error('Error in /api/github/fetch:', err);
-    return res.status(500).json({ error: err.message || 'Failed to ingest GitHub repository.' });
+    return res.status(err.status || 500).json({ error: err.message || 'Failed to ingest GitHub repository.' });
+  }
+});
+
+// Full-cycle GitHub import & automated audit pipeline endpoint
+app.post('/api/github-import', async (req: Request, res: Response) => {
+  try {
+    const { repoUrl, maxFiles = 250, customRules = '' } = req.body;
+    if (!repoUrl) {
+      return res.status(400).json({ error: 'GitHub repository URL is required.' });
+    }
+    const githubData = await fetchGithubRepoFilesInternal(repoUrl, Number(maxFiles) || 250);
+    const auditResult = await executeAuditPipeline(githubData.files, githubData.repoName, customRules);
+    return res.json({
+      repoName: githubData.repoName,
+      branch: githubData.branch,
+      files: githubData.files,
+      auditResult
+    });
+  } catch (err: any) {
+    console.error('Error in /api/github-import:', err);
+    return res.status(err.status || 500).json({ error: err.message || 'Failed to import GitHub repository.' });
   }
 });
 
@@ -710,12 +843,19 @@ Perform an in-depth, multi-pass security and architecture audit across the follo
 function normalizeAuditResult(parsedData: any): any {
   if (!parsedData || typeof parsedData !== 'object') return parsedData;
 
-  const securityAudit = Array.isArray(parsedData.securityAudit) ? parsedData.securityAudit : [];
+  let securityAudit = Array.isArray(parsedData.securityAudit) ? parsedData.securityAudit : [];
   const codeSmells = Array.isArray(parsedData.codeSmells) ? parsedData.codeSmells : [];
+
+  // Enrich all security findings with MITRE CWE Top 25 (2025) official taxonomy
+  securityAudit = securityAudit.map((s: any) => enrichWithCweMetadata(s));
 
   if (!parsedData.summary) {
     parsedData.summary = {};
   }
+
+  // Count CWE Top 25 findings
+  const cweTop25Count = securityAudit.filter((s: any) => s.isCweTop25).length;
+  parsedData.summary.cweTop25Count = cweTop25Count;
 
   // Ensure strict synchronization between aggregate metrics and actual item lists
   parsedData.summary.totalVulnerabilities = securityAudit.length;
@@ -1388,6 +1528,57 @@ function runDynamicHeuristicAudit(files: any[], repoName: string, customRules: s
         });
       }
 
+      // 24. Unsafe Buffer Allocation / Potential Out-of-Bounds Memory Operations (CWE-787 / OWASP A06 - Top 25 Rank #5)
+      if (
+        /(?:Buffer\.allocUnsafe\b|strcpy\s*\(|strcat\s*\(|sprintf\s*\(|gets\s*\()/i.test(trimmed)
+      ) {
+        securityAudit.push({
+          id: `SEC-MEMOOB-${securityAudit.length + 1}`,
+          title: `Unsafe Memory Buffer Operation / Potential Out-of-Bounds Write in ${fileName}`,
+          owaspCategory: 'A06:2021 - Vulnerable and Outdated Components',
+          severity: 'High',
+          filePath,
+          lineStart: lineNum,
+          lineEnd: lineNum,
+          vulnerableCode: lineText,
+          description: `Uninitialized memory buffer allocation or unbounded memory copy operation without explicit boundary validation.`,
+          impact: 'Information disclosure from uninitialized heap memory or out-of-bounds write memory corruption.',
+          remediationCode: `// Use zero-filled, bounded buffer allocations\nconst safeBuffer = Buffer.alloc(bufferLength);`,
+          remediationSteps: [
+            'Replace Buffer.allocUnsafe() with zero-initialized Buffer.alloc().',
+            'Enforce bounded copy operations with explicit buffer capacity checks.'
+          ],
+          cwe: 'CWE-787'
+        });
+      }
+
+      // 25. Missing Rate Limiting on Sensitive Authentication Endpoints (CWE-770 / OWASP A04 - Top 25 Rank #25)
+      if (
+        /(?:app|router)\.(?:post|get)\s*\(\s*['"]\/(?:login|signin|auth|token|register|signup|forgot-password|reset-password)/i.test(trimmed) &&
+        !fullContent.includes('rateLimit') &&
+        !fullContent.includes('limiter') &&
+        !fullContent.includes('throttle')
+      ) {
+        securityAudit.push({
+          id: `SEC-RATELIMIT-${securityAudit.length + 1}`,
+          title: `Missing Rate Limiting on Authentication Endpoint in ${fileName}`,
+          owaspCategory: 'A04:2021 - Insecure Design',
+          severity: 'High',
+          filePath,
+          lineStart: lineNum,
+          lineEnd: lineNum,
+          vulnerableCode: lineText,
+          description: `Authentication endpoint does not enforce rate limiting or burst throttling, allowing automated credential stuffing and brute-force attacks.`,
+          impact: 'Account takeover via automated dictionary attacks, distributed brute forcing, and resource starvation.',
+          remediationCode: `import rateLimit from 'express-rate-limit';\nconst authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Too many login attempts.' });\nrouter.post('/login', authLimiter, loginHandler);`,
+          remediationSteps: [
+            'Attach rate-limiting middleware (e.g. express-rate-limit or Redis sliding window).',
+            'Implement progressive delays or CAPTCHA challenges after repeated authentication failures.'
+          ],
+          cwe: 'CWE-770'
+        });
+      }
+
       // -----------------------------------------------------------------
       // CODE SMELLS & REFACTORING RULES (PERFORMANCE, RELIABILITY, ARCHITECTURE, MAINTAINABILITY)
       // -----------------------------------------------------------------
@@ -1744,6 +1935,10 @@ ${compLinks}
       languageBreakdown[l] = Math.round((count / files.length) * 100);
     });
 
+    // Enrich all heuristic security findings with MITRE CWE Top 25 (2025) taxonomy
+    const enrichedSecurityAudit = securityAudit.map((s) => enrichWithCweMetadata(s));
+    const cweTop25Count = enrichedSecurityAudit.filter((s) => s.isCweTop25).length;
+
     return {
     id: `audit-${Date.now()}`,
     timestamp: new Date().toISOString(),
@@ -1752,21 +1947,22 @@ ${compLinks}
     modelUsed: 'CodePulse Deep Heuristic & AST Engine',
     scannedFilesCount: files.length,
     summary: {
-      overallHealthScore: Math.max(35, 95 - (securityAudit.length * 8) - (codeSmells.length * 3)),
+      overallHealthScore: Math.max(35, 95 - (enrichedSecurityAudit.length * 8) - (codeSmells.length * 3)),
       maintainabilityScore: Math.max(40, 90 - (codeSmells.length * 5)),
-      securityScore: Math.max(25, 98 - (securityAudit.length * 12)),
+      securityScore: Math.max(25, 98 - (enrichedSecurityAudit.length * 12)),
       cyclomaticComplexity: totalLines > 500 ? 'High' : totalLines > 200 ? 'Medium' : 'Low',
-      totalVulnerabilities: securityAudit.length,
+      totalVulnerabilities: enrichedSecurityAudit.length,
       totalCodeSmells: codeSmells.length,
+      cweTop25Count,
       severityCounts: {
-        critical: securityAudit.filter((s) => s.severity === 'Critical').length,
-        high: securityAudit.filter((s) => s.severity === 'High').length,
-        medium: securityAudit.filter((s) => s.severity === 'Medium').length,
-        low: securityAudit.filter((s) => s.severity === 'Low').length,
-        info: securityAudit.filter((s) => s.severity === 'Info').length
+        critical: enrichedSecurityAudit.filter((s) => s.severity === 'Critical').length,
+        high: enrichedSecurityAudit.filter((s) => s.severity === 'High').length,
+        medium: enrichedSecurityAudit.filter((s) => s.severity === 'Medium').length,
+        low: enrichedSecurityAudit.filter((s) => s.severity === 'Low').length,
+        info: enrichedSecurityAudit.filter((s) => s.severity === 'Info').length
       },
       keyTakeaways: [
-        `Identified ${securityAudit.length} security vulnerabilities requiring remediation across OWASP Top 10 vectors.`,
+        `Identified ${enrichedSecurityAudit.length} security vulnerabilities (${cweTop25Count} mapped to 2025 CWE Top 25 root causes).`,
         `Detected ${codeSmells.length} architectural code smells spanning query performance, resilience, and reliability.`,
         `Scanned ${files.length} modules across ${totalLines} total lines of code and ${totalFunctions} function signatures.`
       ]
@@ -1801,7 +1997,7 @@ ${compLinks}
         'Enforce tenant-isolated RLS policies across all data store schemas.'
       ]
     },
-    securityAudit,
+    securityAudit: enrichedSecurityAudit,
     codeSmells,
     astMetrics: {
       totalLinesOfCode: totalLines,
@@ -1893,14 +2089,8 @@ function mergeAuditResults(aiAudit: any, heuristicAudit: any): any {
 // ---------------------------------------------------------
 // 3. AUDIT PIPELINE WITH MAP-REDUCE & STRATEGIC DISTILLATION
 // ---------------------------------------------------------
-app.post('/api/audit', async (req: Request, res: Response) => {
+async function executeAuditPipeline(files: any[], repoName: string = 'Uploaded Codebase', customRules: string = ''): Promise<any> {
   const startTime = Date.now();
-  const { files, repoName = 'Uploaded Codebase', customRules = '' } = req.body;
-
-  if (!files || !Array.isArray(files) || files.length === 0) {
-    return res.status(400).json({ error: 'Please provide at least one code file to audit.' });
-  }
-
   // Precompute AST & heuristic findings for deep multi-vector coverage
   const heuristicResult = runDynamicHeuristicAudit(files, repoName, customRules, startTime);
   const ai = getGeminiClient();
@@ -1966,7 +2156,7 @@ Distilled Structural Files & Critical Code:
 ${distilledPayload.slice(0, 35000)}
 ${customRules ? `\nCompliance Rules:\n${customRules}` : ''}
 
-Synthesize the final complete audit report adhering strictly to the JSON schema, including an end-to-end Mermaid graph TD diagram connecting all domains and services. Find all vulnerabilities across OWASP Top 10 and CWE without omitting anything.`;
+Synthesize the final complete audit report adhering strictly to the JSON schema, including an end-to-end Mermaid graph TD diagram connecting all domains and services. Find all vulnerabilities across OWASP Top 10 and CWE (especially 2025 CWE Top 25: XSS CWE-79, SQLi CWE-89, CSRF CWE-352, Missing Auth CWE-862, Out-of-bounds Write CWE-787, etc.) without omitting anything.`;
 
         const { text: responseText, modelUsed } = await generateContentWithResilience(ai, {
           contents: reducePrompt,
@@ -1981,7 +2171,7 @@ Synthesize the final complete audit report adhering strictly to the JSON schema,
         parsedData = normalizeAuditResult(parsedData);
         const mergedData = mergeAuditResults(parsedData, heuristicResult);
 
-        return res.json({
+        return {
           id: `audit-${Date.now()}`,
           timestamp: new Date().toISOString(),
           repoName,
@@ -1989,7 +2179,7 @@ Synthesize the final complete audit report adhering strictly to the JSON schema,
           modelUsed: `${modelUsed} + CodePulse Deep AST Engine`,
           scannedFilesCount: files.length,
           ...mergedData
-        });
+        };
       } else {
         // Standard Single-Pass Distilled Audit
         const userPrompt = `Audit the following codebase repository named "${repoName}":
@@ -2001,7 +2191,7 @@ Distilled Code Files:
 ${distilledPayload}
 ${customRules ? `\nAdditional Compliance/Audit Rules:\n${customRules}` : ''}
 
-Identify all vulnerabilities across OWASP Top 10 and CWE categories.`;
+Identify all vulnerabilities across OWASP Top 10 and CWE categories (especially 2025 CWE Top 25 root causes: XSS CWE-79, SQLi CWE-89, CSRF CWE-352, Missing Auth CWE-862, Out-of-bounds Write CWE-787).`;
 
         const { text: responseText, modelUsed } = await generateContentWithResilience(ai, {
           contents: userPrompt,
@@ -2016,7 +2206,7 @@ Identify all vulnerabilities across OWASP Top 10 and CWE categories.`;
         parsedData = normalizeAuditResult(parsedData);
         const mergedData = mergeAuditResults(parsedData, heuristicResult);
 
-        return res.json({
+        return {
           id: `audit-${Date.now()}`,
           timestamp: new Date().toISOString(),
           repoName,
@@ -2024,7 +2214,7 @@ Identify all vulnerabilities across OWASP Top 10 and CWE categories.`;
           modelUsed: `${modelUsed} + CodePulse Deep AST Engine`,
           scannedFilesCount: files.length,
           ...mergedData
-        });
+        };
       }
     } catch (err: any) {
       console.error('Error in resilient Gemini audit:', err?.message || err);
@@ -2032,7 +2222,21 @@ Identify all vulnerabilities across OWASP Top 10 and CWE categories.`;
   }
 
   // Fallback to local heuristic audit
-  return res.json(heuristicResult);
+  return heuristicResult;
+}
+
+app.post('/api/audit', async (req: Request, res: Response) => {
+  try {
+    const { files, repoName = 'Uploaded Codebase', customRules = '' } = req.body;
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({ error: 'Please provide at least one code file to audit.' });
+    }
+    const auditResult = await executeAuditPipeline(files, repoName, customRules);
+    return res.json(auditResult);
+  } catch (err: any) {
+    console.error('Error in /api/audit handler:', err);
+    return res.status(500).json({ error: err.message || 'Audit execution encountered an unexpected error.' });
+  }
 });
 
 // ---------------------------------------------------------

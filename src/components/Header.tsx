@@ -48,7 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenMemory
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { mode, effectiveTheme, toggleTheme } = useTheme();
+  const { mode, effectiveTheme, toggleTheme, setMode } = useTheme();
   const isExtendedWorkspace = activeTab !== 'upload' && activeTab !== 'execution' && auditResult !== null;
   const healthScore = auditResult?.summary.overallHealthScore ?? 92;
 
@@ -160,33 +160,65 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </button>
 
-            {/* System Theme Toggle Button */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-slate-900/80 dark:bg-slate-900/80 light:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-800 light:hover:bg-slate-200 border border-slate-800 dark:border-slate-800 light:border-slate-300 text-xs font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer min-h-[40px]"
-              title={`Theme: ${mode} (${effectiveTheme} active). Click to toggle.`}
-            >
-              {mode === 'system' ? (
-                <Monitor className="w-4 h-4 text-indigo-400" />
-              ) : effectiveTheme === 'dark' ? (
-                <Moon className="w-4 h-4 text-purple-400" />
-              ) : (
-                <Sun className="w-4 h-4 text-amber-500" />
-              )}
-              <span className="capitalize hidden md:inline text-[11px] font-medium">{mode === 'system' ? 'Auto' : effectiveTheme}</span>
-            </button>
+            {/* System Theme Segmented Switcher (Auto / Dark / Light) */}
+            <div className="flex items-center p-0.5 bg-slate-900/90 dark:bg-slate-900/90 light:bg-slate-100 border border-slate-800 dark:border-slate-800 light:border-slate-300 rounded-lg shadow-inner">
+              <button
+                type="button"
+                id="theme-btn-system"
+                onClick={() => setMode('system')}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+                  mode === 'system'
+                    ? 'bg-indigo-600 text-white shadow-sm font-semibold'
+                    : 'text-slate-400 hover:text-slate-200 dark:text-slate-400 dark:hover:text-slate-100 light:text-slate-600 light:hover:text-slate-900'
+                }`}
+                title="Auto: Automatically synchronizes with your device OS daylight / dark schedule"
+              >
+                <Monitor className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Auto</span>
+              </button>
+
+              <button
+                type="button"
+                id="theme-btn-dark"
+                onClick={() => setMode('dark')}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+                  mode === 'dark'
+                    ? 'bg-indigo-600 text-white shadow-sm font-semibold'
+                    : 'text-slate-400 hover:text-slate-200 dark:text-slate-400 dark:hover:text-slate-100 light:text-slate-600 light:hover:text-slate-900'
+                }`}
+                title="Dark: Obsidian zero-trust dark theme"
+              >
+                <Moon className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Dark</span>
+              </button>
+
+              <button
+                type="button"
+                id="theme-btn-light"
+                onClick={() => setMode('light')}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+                  mode === 'light'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
+                    : 'text-slate-400 hover:text-slate-200 dark:text-slate-400 dark:hover:text-slate-100 light:text-slate-600 light:hover:text-slate-900'
+                }`}
+                title="Light: High-contrast daylight executive theme"
+              >
+                <Sun className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Light</span>
+              </button>
+            </div>
 
             {/* Enterprise Settings Button */}
             {onOpenSettings && (
               <button
                 type="button"
+                id="header-settings-button"
                 onClick={onOpenSettings}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900/80 dark:bg-slate-900/80 light:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-800 light:hover:bg-slate-200 border border-slate-800 dark:border-slate-800 light:border-slate-300 text-xs font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white transition-all duration-200 hover:-translate-y-0.5 cursor-pointer min-h-[40px]"
-                title="Open Enterprise Settings & Rule Engine"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900/80 dark:bg-slate-900/80 light:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-800 light:hover:bg-slate-200 border border-slate-800 dark:border-slate-800 light:border-slate-300 text-xs font-semibold text-slate-200 dark:text-slate-200 light:text-slate-700 hover:text-white transition-all duration-200 hover:-translate-y-0.5 cursor-pointer min-h-[40px] shadow-sm"
+                title="Open Enterprise Settings (Theme, Memory, Security Frameworks, Engine)"
               >
                 <SettingsIcon className="w-4 h-4 text-indigo-400 shrink-0" />
-                <span className="hidden lg:inline">Settings</span>
+                <span className="inline">Settings</span>
               </button>
             )}
 

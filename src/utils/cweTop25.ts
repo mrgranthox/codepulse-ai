@@ -305,3 +305,12 @@ export function getCWETop25Entry(cweString?: string): CWETop25Entry | undefined 
   const normalizedId = `CWE-${match[1]}`;
   return CWE_TOP_25_2025.find((item) => item.cweId.toUpperCase() === normalizedId.toUpperCase());
 }
+
+export function isCWETop25(cweString?: string): boolean {
+  return !!getCWETop25Entry(cweString);
+}
+
+export function getCWETop25Rank(cweString?: string): number | undefined {
+  const entry = getCWETop25Entry(cweString);
+  return entry ? entry.rank : undefined;
+}
