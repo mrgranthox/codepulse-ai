@@ -196,18 +196,46 @@ export type UserRole = 'admin' | 'auditor' | 'developer';
 
 function createSessionToken(tenantId: string, role: UserRole = 'auditor'): { token: string; expiresAt: string; role: UserRole } {
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  // Standard RFC 7519 JWT Header with explicit HS256 algorithm declaration
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const payload = Buffer.from(JSON.stringify({ tenantId, role, expiresAt })).toString('base64url');
-  const signature = crypto.createHmac('sha256', SESSION_HMAC_SECRET).update(payload).digest('base64url');
-  const token = `${payload}.${signature}`;
+  const signingInput = [header, payload].join('.');
+  const signature = crypto.createHmac('sha256', SESSION_HMAC_SECRET).update(signingInput).digest('base64url');
+  const token = [header, payload, signature].join('.');
   return { token, expiresAt, role };
 }
 
 function verifySessionToken(token: string): { valid: boolean; tenantId?: string; role?: UserRole; error?: string } {
   if (!token || typeof token !== 'string') return { valid: false, error: 'Missing session authorization token' };
   const parts = token.split('.');
-  if (parts.length !== 2) return { valid: false, error: 'Malformed token structure' };
-  const [payload, signature] = parts;
-  const expectedSig = crypto.createHmac('sha256', SESSION_HMAC_SECRET).update(payload).digest('base64url');
+  if (parts.length !== 3) {
+    return { valid: false, error: 'Malformed token structure: Expected standard 3-part JWT (header.payload.signature)' };
+  }
+
+  const [headerB64, payloadB64, signature] = parts;
+
+  // 1. Explicit JWT Algorithm Enforcement (CWE-347 / OWASP A07 / SEC-002 Defense)
+  let header: any;
+  try {
+    const rawHeader = Buffer.from(headerB64, 'base64url').toString('utf-8');
+    header = JSON.parse(rawHeader, (key, value) => {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+        return undefined;
+      }
+      return value;
+    });
+  } catch {
+    return { valid: false, error: 'Invalid JWT header format' };
+  }
+
+  // Strictly enforce HMAC-SHA256 (HS256) algorithm constraint and prevent algorithm confusion attacks
+  if (!header || typeof header !== 'object' || header.alg !== 'HS256') {
+    return { valid: false, error: 'Invalid algorithm: Only HS256 algorithm constraint is allowed' };
+  }
+
+  // 2. Cryptographic Signature Verification (Constant-Time)
+  const signingInput = [headerB64, payloadB64].join('.');
+  const expectedSig = crypto.createHmac('sha256', SESSION_HMAC_SECRET).update(signingInput).digest('base64url');
   
   const sigBuf = Buffer.from(signature);
   const expectedBuf = Buffer.from(expectedSig);
@@ -215,14 +243,39 @@ function verifySessionToken(token: string): { valid: boolean; tenantId?: string;
     return { valid: false, error: 'Invalid cryptographic session signature' };
   }
   
+  // 3. Safe Deserialization & Strict Schema Validation (CWE-502 / SEC-003 Defense)
   try {
-    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8'));
+    const rawPayload = Buffer.from(payloadB64, 'base64url').toString('utf-8');
+    // Disable prototype assignment and strip dangerous keys during parsing
+    const data = JSON.parse(rawPayload, (key, value) => {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+        return undefined;
+      }
+      return value;
+    });
+
+    if (!data || typeof data !== 'object') {
+      return { valid: false, error: 'Invalid token payload structure' };
+    }
+
+    // Strict schema boundary validation
+    if (typeof data.tenantId !== 'string' || !data.tenantId.trim()) {
+      return { valid: false, error: 'Invalid token payload: tenantId must be a non-empty string' };
+    }
+    if (!['admin', 'auditor', 'developer'].includes(data.role)) {
+      return { valid: false, error: 'Invalid token payload: unrecognized user role' };
+    }
+    if (typeof data.expiresAt !== 'string' || isNaN(Date.parse(data.expiresAt))) {
+      return { valid: false, error: 'Invalid token payload: invalid expiration timestamp' };
+    }
+
     if (new Date(data.expiresAt).getTime() < Date.now()) {
       return { valid: false, error: 'Session authorization expired' };
     }
-    return { valid: true, tenantId: data.tenantId, role: data.role || 'auditor' };
+
+    return { valid: true, tenantId: data.tenantId, role: data.role as UserRole };
   } catch {
-    return { valid: false, error: 'Corrupt session payload' };
+    return { valid: false, error: 'Corrupt or unparseable session payload' };
   }
 }
 
@@ -2806,7 +2859,14 @@ app.post('/api/audit', ingestionRateLimiter, requireAuth('auditor'), async (req:
 
     const tenantContext = resolveTenantContext(req);
     appendWalEntry(tenantContext.tenantId, 'direct_upload', 'FILES_INGESTED', { repoName, filesCount: files.length });
-    const auditResult = await executeAuditPipeline(files, repoName, customRules, tenantContext.tenantId);
+    
+    // Server-Side Zero-Trust Ingestion: Scrub secrets and sensitive credentials in isolated server runtime (CWE-200 / SEC-001 Defense)
+    const sanitizedFiles = files.map((file: any) => ({
+      ...file,
+      content: scrubSecrets(file.content || '')
+    }));
+
+    const auditResult = await executeAuditPipeline(sanitizedFiles, repoName, customRules, tenantContext.tenantId);
     return res.json(auditResult);
   } catch (err: any) {
     console.error('Error in /api/audit handler:', err);

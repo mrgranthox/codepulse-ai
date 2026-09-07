@@ -262,21 +262,20 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id = 'm
     };
   }, [chart]);
 
-  // Safely mount sanitized SVG elements directly into the DOM tree (CWE-79 / SEC-XSS-7 Defense)
+  // Safely mount sanitized SVG elements directly into the DOM tree (CWE-79 XSS & CWE-611 XXE Defense)
+  // Utilizes browser-native template sanitization via DOMPurify without XML parser or external DTD processing
   useEffect(() => {
     if (!containerRef.current || !svgContent || isRawView) return;
 
-    const cleanSvg = DOMPurify.sanitize(svgContent, {
+    const cleanFragment = DOMPurify.sanitize(svgContent, {
+      RETURN_DOM_FRAGMENT: true,
       USE_PROFILES: { svg: true, svgFilters: true },
       FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'style'],
       FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'href']
-    });
+    }) as Node;
 
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(cleanSvg, 'image/svg+xml');
-    const svgEl = doc.querySelector('svg');
-    if (svgEl) {
-      containerRef.current.replaceChildren(svgEl);
+    if (cleanFragment) {
+      containerRef.current.replaceChildren(cleanFragment);
     }
   }, [svgContent, isRawView]);
 

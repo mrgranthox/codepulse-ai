@@ -64,40 +64,15 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [ingestMode, setIngestMode] = useState<'github' | 'upload' | 'paste'>('github');
   const [isDragging, setIsDragging] = useState(false);
-  const [scrubbedSecretsCount, setScrubbedSecretsCount] = useState(0);
   const [githubUrl, setGithubUrl] = useState('');
   const [scanDepth, setScanDepth] = useState<number>(250);
   const [customMaxFiles, setCustomMaxFiles] = useState<string>('');
   const [isFetchingGithub, setIsFetchingGithub] = useState(false);
   const [showAdvancedRules, setShowAdvancedRules] = useState(false);
 
-  // Client-side zero-trust regex secret scrubbing
-  const scrubCode = (rawContent: string): { cleaned: string; scrubbed: number } => {
-    let count = 0;
-    let cleaned = rawContent;
-
-    const secretPatterns = [
-      /(AKIA[0-9A-Z]{16})/g,
-      /(ghp_[a-zA-Z0-9]{36})/g,
-      /(eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,})/g,
-      /(stripe_(?:test|live)_[a-zA-Z0-9]{24,})/g,
-      /(['"][a-zA-Z0-9_-]{32,}['"])/g
-    ];
-
-    secretPatterns.forEach((pattern) => {
-      cleaned = cleaned.replace(pattern, () => {
-        count++;
-        return `"REDACTED_SECRET_${count}"`;
-      });
-    });
-
-    return { cleaned, scrubbed: count };
-  };
-
   const processFiles = (uploadedFiles: FileList | null) => {
     if (!uploadedFiles || uploadedFiles.length === 0) return;
 
-    let totalScrubbed = 0;
     const newFiles: CodeFile[] = [];
 
     Array.from(uploadedFiles).forEach((file) => {
@@ -117,15 +92,12 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
         else if (ext === 'yaml' || ext === 'yml') language = 'yaml';
         else if (ext === 'c' || ext === 'cpp' || ext === 'h') language = 'cpp';
 
-        const { cleaned, scrubbed } = scrubCode(content);
-        totalScrubbed += scrubbed;
-
         const fileObj: CodeFile = {
           id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           name: file.name,
           path: (file as any).webkitRelativePath || `src/${file.name}`,
           language,
-          content: cleaned,
+          content,
           size: file.size
         };
 
@@ -133,10 +105,6 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
       };
       reader.readAsText(file);
     });
-
-    if (totalScrubbed > 0) {
-      setScrubbedSecretsCount((prev) => prev + totalScrubbed);
-    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -689,15 +657,10 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
       <div className="p-4 rounded-xl bg-slate-900/80 backdrop-blur-md border border-slate-800 text-center flex flex-col sm:flex-row items-center justify-center gap-3 text-xs text-slate-400 shadow-xl">
         <div className="flex items-center gap-2 text-indigo-300 font-semibold">
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span>Client-Side Zero-Trust Redaction</span>
+          <span>Server-Side Zero-Trust Redaction</span>
         </div>
         <span className="hidden sm:inline text-slate-600">•</span>
-        <span className="text-slate-300">API keys, JWTs, and secrets are scrubbed before payload transmission.</span>
-        {scrubbedSecretsCount > 0 && (
-          <span className="font-mono text-emerald-400 font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/50">
-            {scrubbedSecretsCount} secret(s) redacted
-          </span>
-        )}
+        <span className="text-slate-300">API keys, tokens, and credentials are scrubbed by the isolated server ingestion layer before AST processing or AI synthesis.</span>
       </div>
     </div>
   );
