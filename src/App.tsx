@@ -231,7 +231,7 @@ function AppContent() {
           'Content-Type': 'application/json',
           ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {})
         },
-        signal: AbortSignal.timeout(60000),
+        signal: AbortSignal.timeout(180000), // 3-minute timeout for deep multi-vector AST & AI synthesis
         body: JSON.stringify({
           files,
           repoName: repoName || 'Custom Codebase',
@@ -292,7 +292,17 @@ function AppContent() {
       console.error('Audit execution error:', err);
       setIsLoading(false);
       setActiveTab('upload');
-      setErrorMessage(err.message || 'Failed to complete codebase audit.');
+      const isTimeout =
+        err?.name === 'TimeoutError' ||
+        err?.name === 'AbortError' ||
+        err?.message?.toLowerCase().includes('timed out') ||
+        err?.message?.toLowerCase().includes('aborted');
+
+      const message = isTimeout
+        ? 'Codebase audit timed out while analyzing files. For large codebases, consider auditing critical subdirectories or modules.'
+        : err?.message || 'Failed to complete codebase audit.';
+
+      setErrorMessage(message);
     }
   };
 
@@ -313,7 +323,7 @@ function AppContent() {
           'Content-Type': 'application/json',
           ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {})
         },
-        signal: AbortSignal.timeout(45000),
+        signal: AbortSignal.timeout(180000), // 3-minute timeout for GitHub ingestion & full audit pipeline
         body: JSON.stringify({
           repoUrl,
           maxFiles,
@@ -380,7 +390,17 @@ function AppContent() {
       console.error('GitHub ingestion error:', err);
       setIsLoading(false);
       setActiveTab('upload');
-      setErrorMessage(err.message || 'Failed to import and audit GitHub repository.');
+      const isTimeout =
+        err?.name === 'TimeoutError' ||
+        err?.name === 'AbortError' ||
+        err?.message?.toLowerCase().includes('timed out') ||
+        err?.message?.toLowerCase().includes('aborted');
+
+      const message = isTimeout
+        ? 'GitHub ingestion & audit timed out. The repository may be exceptionally large or GitHub rate limits may be active. Try setting max files to 20-50 or upload files directly.'
+        : err?.message || 'Failed to import and audit GitHub repository.';
+
+      setErrorMessage(message);
     }
   };
 

@@ -262,6 +262,24 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id = 'm
     };
   }, [chart]);
 
+  // Safely mount sanitized SVG elements directly into the DOM tree (CWE-79 / SEC-XSS-7 Defense)
+  useEffect(() => {
+    if (!containerRef.current || !svgContent || isRawView) return;
+
+    const cleanSvg = DOMPurify.sanitize(svgContent, {
+      USE_PROFILES: { svg: true, svgFilters: true },
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'style'],
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'href']
+    });
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(cleanSvg, 'image/svg+xml');
+    const svgEl = doc.querySelector('svg');
+    if (svgEl) {
+      containerRef.current.replaceChildren(svgEl);
+    }
+  }, [svgContent, isRawView]);
+
   const handleCopy = () => {
     navigator.clipboard.writeText(effectiveChart || chart);
     setCopied(true);
@@ -354,13 +372,6 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id = 'm
             ref={containerRef}
             style={{ transform: `scale(${zoom})`, transformOrigin: 'center center', transition: 'transform 0.15s ease-out' }}
             className="w-full flex justify-center items-center select-none"
-            dangerouslySetInnerHTML={{
-              __html: DOMPurify.sanitize(svgContent, {
-                USE_PROFILES: { svg: true, svgFilters: true },
-                FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
-                FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover']
-              })
-            }}
           />
         ) : (
           <div className="max-w-lg p-6 bg-slate-900/60 border border-slate-800 rounded-xl text-center space-y-3">
