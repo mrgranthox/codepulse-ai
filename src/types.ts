@@ -103,6 +103,19 @@ export interface ASTMetrics {
   languageBreakdown: Record<string, number>;
 }
 
+export interface ComplianceAttestation {
+  tenantId: string;
+  cryptographicProof: string;
+  merkleRoot: string;
+  walSequence: number;
+  dataResidencyRegion: string;
+  encryptionStandard: string;
+  zeroPromptRetention: boolean;
+  rlsEnforced: boolean;
+  activePoliciesCount: number;
+  timestamp: string;
+}
+
 export interface AuditResult {
   id: string;
   timestamp: string;
@@ -115,6 +128,7 @@ export interface AuditResult {
   scannedFilesCount: number;
   executionTimeMs: number;
   modelUsed: string;
+  compliance?: ComplianceAttestation;
 }
 
 export interface AuditHistoryItem {

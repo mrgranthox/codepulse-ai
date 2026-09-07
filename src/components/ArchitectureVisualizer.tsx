@@ -57,9 +57,14 @@ export const ArchitectureVisualizer: React.FC<ArchitectureVisualizerProps> = ({ 
     setIsPanelOpen(true);
 
     try {
+      const sessionToken = sessionStorage.getItem('codepulse_session_token');
       const response = await fetch('/api/architecture/explain', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {})
+        },
+        signal: AbortSignal.timeout(30000),
         body: JSON.stringify({
           mermaidDefinition: architecture.mermaidDefinition,
           components: architecture.components,

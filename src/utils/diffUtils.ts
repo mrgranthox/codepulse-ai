@@ -1,7 +1,14 @@
 import { CodeFile, AuditResult, SecurityFinding, CodeSmell } from '../types';
 
+export enum DiffLineType {
+  Unchanged = 'unchanged',
+  Added = 'added',
+  Deleted = 'deleted',
+  Modified = 'modified'
+}
+
 export interface DiffLine {
-  type: 'unchanged' | 'added' | 'deleted' | 'modified';
+  type: DiffLineType | 'unchanged' | 'added' | 'deleted' | 'modified';
   leftLineNum?: number;
   rightLineNum?: number;
   leftContent: string;
@@ -108,45 +115,79 @@ export function getFileSuggestions(file: CodeFile, auditResult: AuditResult | nu
 }
 
 /**
+ * Safe literal string replacement that does not evaluate regex meta-characters or
+ * special pattern replacement sequences ($1, $&, $', etc.)
+ */
+function safeLiteralReplace(source: string, target: string, replacement: string): string {
+  if (!target) return source;
+  const idx = source.indexOf(target);
+  if (idx === -1) return source;
+  return source.slice(0, idx) + replacement + source.slice(idx + target.length);
+}
+
+/**
  * Generates the synthesized full refactored code for a file by applying
  * all matched security remediations and code smell refactorings.
+ * Uses line-range slicing and literal index substitution to prevent string corruption
+ * and accidental code injection.
  */
 export function generateFullRefactoredCode(
   file: CodeFile,
   suggestions: FileSuggestion[]
 ): string {
-  let content = file.content;
   if (!suggestions || suggestions.length === 0) {
-    return content;
+    return file.content;
   }
 
-  // Apply suggestions in sequence
-  for (const item of suggestions) {
-    const orig = item.originalSnippet.trim();
-    const replacement = item.refactoredSnippet.trim();
+  // Clone suggestions and sort descending by lineStart to prevent line offset skew
+  const sorted = [...suggestions].sort((a, b) => {
+    const startA = a.lineStart || 0;
+    const startB = b.lineStart || 0;
+    return startB - startA;
+  });
 
-    if (!orig || !replacement) continue;
+  let fileLines = file.content.split('\n');
 
-    if (content.includes(orig)) {
-      content = content.replace(orig, replacement);
-    } else {
-      // Fuzzy line matching if exact string has slight whitespace differences
-      const origLines = orig.split('\n').map((l) => l.trim()).filter(Boolean);
-      if (origLines.length > 0) {
-        const firstLine = origLines[0];
-        const contentLines = content.split('\n');
-        const matchIdx = contentLines.findIndex((l) => l.trim() === firstLine);
-        if (matchIdx !== -1) {
-          // Replace chunk
-          const matchedCount = Math.min(origLines.length, contentLines.length - matchIdx);
-          contentLines.splice(matchIdx, matchedCount, replacement);
-          content = contentLines.join('\n');
-        }
+  for (const item of sorted) {
+    const orig = item.originalSnippet ? item.originalSnippet.trim() : '';
+    const replacement = item.refactoredSnippet !== undefined ? item.refactoredSnippet : '';
+    if (!orig && !replacement) continue;
+
+    // 1. Line-range guided replacement if valid lines are present
+    if (item.lineStart && item.lineStart > 0 && item.lineEnd && item.lineEnd >= item.lineStart) {
+      const startIdx = item.lineStart - 1;
+      const endIdx = Math.min(fileLines.length, item.lineEnd);
+      const targetSlice = fileLines.slice(startIdx, endIdx).join('\n').trim();
+
+      if (targetSlice.includes(orig) || orig.includes(targetSlice) || targetSlice.length === 0) {
+        const replacementLines = replacement.split('\n');
+        fileLines.splice(startIdx, endIdx - startIdx, ...replacementLines);
+        continue;
+      }
+    }
+
+    // 2. Exact or fuzzy search across file lines
+    const currentText = fileLines.join('\n');
+    if (orig && currentText.includes(orig)) {
+      const updated = safeLiteralReplace(currentText, orig, replacement);
+      fileLines = updated.split('\n');
+      continue;
+    }
+
+    // 3. Normalized whitespace line-match fallback
+    const origLines = orig.split('\n').map((l) => l.trim()).filter(Boolean);
+    if (origLines.length > 0) {
+      const firstLine = origLines[0];
+      const matchIdx = fileLines.findIndex((l) => l.trim() === firstLine);
+      if (matchIdx !== -1) {
+        const matchedCount = Math.min(origLines.length, fileLines.length - matchIdx);
+        const replacementLines = replacement.split('\n');
+        fileLines.splice(matchIdx, matchedCount, ...replacementLines);
       }
     }
   }
 
-  return content;
+  return fileLines.join('\n');
 }
 
 /**
@@ -206,7 +247,7 @@ export function computeLineDiff(originalText: string, refactoredText: string): {
 
     if (entry.type === 'same') {
       diffLines.push({
-        type: 'unchanged',
+        type: DiffLineType.Unchanged,
         leftLineNum: entry.origIdx! + 1,
         rightLineNum: entry.refactIdx! + 1,
         leftContent: origLines[entry.origIdx!],
@@ -218,7 +259,7 @@ export function computeLineDiff(originalText: string, refactoredText: string): {
       if (k + 1 < rawDiff.length && rawDiff[k + 1].type === 'add') {
         const nextEntry = rawDiff[k + 1];
         diffLines.push({
-          type: 'modified',
+          type: DiffLineType.Modified,
           leftLineNum: entry.origIdx! + 1,
           rightLineNum: nextEntry.refactIdx! + 1,
           leftContent: origLines[entry.origIdx!],
@@ -229,7 +270,7 @@ export function computeLineDiff(originalText: string, refactoredText: string): {
         k += 2;
       } else {
         diffLines.push({
-          type: 'deleted',
+          type: DiffLineType.Deleted,
           leftLineNum: entry.origIdx! + 1,
           rightLineNum: undefined,
           leftContent: origLines[entry.origIdx!],
@@ -241,7 +282,7 @@ export function computeLineDiff(originalText: string, refactoredText: string): {
       }
     } else if (entry.type === 'add') {
       diffLines.push({
-        type: 'added',
+        type: DiffLineType.Added,
         leftLineNum: undefined,
         rightLineNum: entry.refactIdx! + 1,
         leftContent: '',

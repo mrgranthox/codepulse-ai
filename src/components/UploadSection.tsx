@@ -202,19 +202,6 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
             </span>
             <span>Zero-Trust Enterprise Neural Auditor</span>
           </div>
-
-          {onOpenSettings && (
-            <button
-              type="button"
-              id="upload-settings-button"
-              onClick={onOpenSettings}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white text-xs font-medium cursor-pointer transition-all shadow-sm"
-              title="Open Enterprise Settings (Theme, Memory, Security Frameworks, Engine)"
-            >
-              <SettingsIcon className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Settings & Themes</span>
-            </button>
-          )}
         </div>
 
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-[1.15]">
@@ -285,23 +272,47 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
           <form onSubmit={handleGithubSubmit} className="space-y-5">
             <div className="space-y-2">
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Public GitHub Repository URL or "owner/repo"
+                Public GitHub Repository URL or "owner/repo" (Universal Auditing)
               </label>
               <div className="relative">
                 <input
                   type="text"
                   value={githubUrl}
                   onChange={(e) => setGithubUrl(e.target.value)}
-                  placeholder="https://github.com/juice-shop/juice-shop or expressjs/express"
+                  placeholder="e.g. expressjs/express, fastify/fastify, or any public GitHub URL"
                   className="w-full pl-10 pr-4 py-3 bg-[#0B0F17] border border-slate-800 focus:border-indigo-500 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none font-mono transition-colors shadow-inner"
                   autoFocus
                 />
                 <Globe className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
               </div>
               
-              {/* Quick Benchmark Presets */}
+              {/* Quick Sample Presets */}
               <div className="flex items-center gap-2 pt-1 flex-wrap text-xs text-slate-400">
-                <span className="text-[11px] font-semibold text-slate-400">Test Presets:</span>
+                <span className="text-[11px] font-semibold text-slate-400">Sample Repos:</span>
+                <button
+                  type="button"
+                  id="preset-express"
+                  onClick={() => setGithubUrl('https://github.com/expressjs/express')}
+                  className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  Express.js
+                </button>
+                <button
+                  type="button"
+                  id="preset-fastify"
+                  onClick={() => setGithubUrl('https://github.com/fastify/fastify')}
+                  className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  Fastify
+                </button>
+                <button
+                  type="button"
+                  id="preset-react"
+                  onClick={() => setGithubUrl('https://github.com/facebook/react')}
+                  className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  React
+                </button>
                 <button
                   type="button"
                   id="preset-juice-shop"
@@ -310,21 +321,10 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                 >
                   OWASP Juice Shop
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setGithubUrl('https://github.com/expressjs/express')}
-                  className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer"
-                >
-                  Express.js
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setGithubUrl('https://github.com/fastify/fastify')}
-                  className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer"
-                >
-                  Fastify
-                </button>
               </div>
+              <p className="text-[11px] text-slate-400 pt-0.5">
+                Scan and audit any public repository across Node.js, Python, Go, Java, Rust, Ruby, PHP, and C/C++.
+              </p>
             </div>
 
             {/* Enterprise Ingestion Depth Selector */}

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
+import DOMPurify from 'dompurify';
 import { Copy, Check, ZoomIn, ZoomOut, RotateCcw, AlertTriangle, Code2, RefreshCw } from 'lucide-react';
 
 interface MermaidRendererProps {
@@ -10,8 +11,8 @@ interface MermaidRendererProps {
 /**
  * Sanitizes and repairs common Mermaid.js syntax errors produced by LLMs or dynamic string templates.
  */
-function sanitizeMermaidChart(raw: string): string {
-  if (!raw || typeof raw !== 'string') {
+export function sanitizeMermaidChart(raw: string): string {
+  if (!raw || typeof raw !== 'string' || raw.trim().length === 0) {
     return 'graph TD\n  Client["Web Client"] --> Server["API Gateway"]\n  Server --> Database[("Database Store")]';
   }
 
@@ -33,6 +34,7 @@ function sanitizeMermaidChart(raw: string): string {
   const sanitizedLines: string[] = [];
   let openSubgraphs = 0;
   let subGraphCounter = 1;
+  let nodeCount = 0;
 
   for (let line of lines) {
     let trimmed = line.trim();
@@ -42,8 +44,11 @@ function sanitizeMermaidChart(raw: string): string {
     if (trimmed.startsWith('subgraph')) {
       openSubgraphs++;
       
-      // Check if multiple node declarations are appended on the same line after subgraph
-      // e.g. "subgraph client[Client & UI Layer] A[App.tsx] B[Component]"
+      // Fix unclosed bracket like "subgraph Ingress ["
+      if (trimmed.endsWith('[')) {
+        trimmed = trimmed.slice(0, -1).trim();
+      }
+
       const inlineMatch = trimmed.match(/^subgraph\s+([A-Za-z0-9_-]+)?(?:\s*\[(.*?)\]|\s+([^[\n]+))?(.*)$/i);
       if (inlineMatch) {
         let subId = inlineMatch[1] || `sub_${subGraphCounter++}`;
@@ -51,17 +56,18 @@ function sanitizeMermaidChart(raw: string): string {
         let trailing = (inlineMatch[4] || '').trim();
 
         // Clean subTitle and subId
-        subTitle = subTitle.replace(/["']/g, '').replace(/&/g, 'and').trim();
+        subTitle = subTitle.replace(/["'\[\]]/g, '').replace(/&/g, 'and').trim() || subId;
         subId = subId.replace(/[^A-Za-z0-9_]/g, '_');
 
         sanitizedLines.push(`  subgraph ${subId} ["${subTitle}"]`);
 
         // If there are trailing nodes on the same line, extract them to subsequent lines
-        if (trailing) {
+        if (trailing && trailing !== '[') {
           const nodeMatches = trailing.match(/([A-Za-z0-9_./-]+)\s*\[(.*?)\]|([A-Za-z0-9_./-]+)/g);
           if (nodeMatches) {
             nodeMatches.forEach((nm) => {
               sanitizedLines.push(`    ${sanitizeNodeStatement(nm)}`);
+              nodeCount++;
             });
           }
         }
@@ -75,14 +81,30 @@ function sanitizeMermaidChart(raw: string): string {
       continue;
     }
 
+    // Fix unclosed bracket on normal line e.g. Node[Label
+    if (trimmed.includes('[') && !trimmed.includes(']')) {
+      trimmed = `${trimmed}"]`;
+    }
+
     // Sanitize node connections and statements on this line
-    sanitizedLines.push(`  ${sanitizeLine(trimmed)}`);
+    const sanitized = sanitizeLine(trimmed);
+    sanitizedLines.push(`  ${sanitized}`);
+    if (sanitized.includes('-->') || sanitized.includes('[') || sanitized.includes('(')) {
+      nodeCount++;
+    }
   }
 
   // Close any unclosed subgraphs
   while (openSubgraphs > 0) {
     sanitizedLines.push('  end');
     openSubgraphs--;
+  }
+
+  // Ensure diagram has valid structural content
+  if (nodeCount === 0) {
+    sanitizedLines.push('  Client["API / Web Ingress"] --> Gateway["Routing Controller"]');
+    sanitizedLines.push('  Gateway --> DomainService["Application Logic Engine"]');
+    sanitizedLines.push('  DomainService --> PersistenceStore[("Database & Vault Store")]');
   }
 
   return sanitizedLines.join('\n');
@@ -332,7 +354,13 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id = 'm
             ref={containerRef}
             style={{ transform: `scale(${zoom})`, transformOrigin: 'center center', transition: 'transform 0.15s ease-out' }}
             className="w-full flex justify-center items-center select-none"
-            dangerouslySetInnerHTML={{ __html: svgContent }}
+            dangerouslySetInnerHTML={{
+              __html: DOMPurify.sanitize(svgContent, {
+                USE_PROFILES: { svg: true, svgFilters: true },
+                FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
+                FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover']
+              })
+            }}
           />
         ) : (
           <div className="max-w-lg p-6 bg-slate-900/60 border border-slate-800 rounded-xl text-center space-y-3">

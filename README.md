@@ -83,6 +83,74 @@ graph TD
 
 ---
 
+## Architecture & Enterprise Specifications (Sections 1–14)
+
+CodePulse AI implements an enterprise architecture designed for zero-trust multi-tenancy, universal repository scanning, neural AST reduction, and cryptographic compliance.
+
+### Section 1: Executive Summary & System Overview
+- **Zero-Trust Multi-Tenancy**: Every audit execution is strictly bound to an ephemeral or authenticated tenant ID (`tenant_...`).
+- **Dual Engine Core**: Hybrid execution leveraging Google Gemini (`gemini-3.7-flash`) with automatic fallback to a local dynamic heuristic AST engine.
+- **Universal Codebase Compatibility**: Ingests any public GitHub repository (Java, TypeScript, Python, Go, Rust, C#, PHP) or client-side file upload without bias.
+
+### Section 2: Zero-Trust Row-Level Security (RLS) & Isolation
+- **Tenant Context Resolution**: Ingress middleware extracts tenant context from `X-Tenant-ID` or crypto hash of IP/User-Agent.
+- **Enforced Security Policies**:
+  - `POLICY_TENANT_ISOLATION_SELECT`: Restricts audit read operations strictly to tenant namespace.
+  - `POLICY_TENANT_ISOLATION_INSERT`: Automatically stamps every ingested repository, AST skeleton, and finding with the active tenant ID.
+  - `POLICY_CROSS_TENANT_PREVENTION`: Rejects unauthorized cross-tenant joins or Merkle proof lookups.
+
+### Section 3: Universal Public GitHub & Local Ingestion Pipeline
+- **Recursive Directory Traversal**: Clones tree structure via GitHub REST API (`/repos/{owner}/{repo}/git/trees/{branch}?recursive=1`) and raw content mirrors.
+- **Security Sanitization**: Strips binary files, lockfiles, hidden secrets, and non-source artifacts before AST distillation.
+- **Graceful Error Handling**: Detects private or non-existent repositories with structured error responses and local retry mechanisms.
+
+### Section 4: AST Compression & Token Reduction Engine
+- **Token Reduction**: Compresses incoming source codebases by **60% to 80%** while preserving type hierarchies, exported interfaces, controller signatures, and ORM schemas.
+- **Context Preservation**: Strips large repetitive implementation bodies and comments to keep audits well within model context limits.
+
+### Section 5: Map-Reduce Neural Synthesis Pipeline
+- **Map Phase**: Breaks large repositories into module clusters (controllers, models, services, middleware) and evaluates domain-level vulnerabilities in parallel via Flash models.
+- **Reduce Phase**: Aggregates module findings into system-wide architecture maps, CWE risk distributions, and executive summaries.
+
+### Section 6: C4 Architectural Modeling Standard
+- **Level 1 (System Context)**: External users, single sign-on providers, payment gateways, and boundary constraints.
+- **Level 2 (Container Topology)**: Single-page applications, Express API services, microservices, databases, and caches.
+- **Level 3 (Component Diagram)**: Security middleware, routing controllers, business services, and database clients.
+
+### Section 7: Security Vulnerability Engine (OWASP Top 10 & CWE)
+- **Deterministic Detection**: Scans for Injection (CWE-89, CWE-79), Broken Access Control (CWE-862), CSRF (CWE-352), Hardcoded Secrets (CWE-798), and Memory Corruptions (CWE-787).
+- **Remediation Code**: Provides production-ready replacement snippets and impact assessments.
+
+### Section 8: Code Smells & Refactoring Engine
+- **Pattern Matching**: Identifies N+1 database queries, unhandled promise rejections, memory leaks in event listeners, and missing timeout guardrails.
+- **Monaco Diff Viewer**: Renders side-by-side colorized diffs comparing original code with refactored implementations.
+
+### Section 9: Token Budget Guardrails & Cost Simulator
+- **Budget Enforcer**: Tracks input/output token usage per audit run against configurable enterprise cost ceilings.
+- **Cost Calculation**: Visualizes Map Phase costs vs. Reduce Phase costs in real time.
+
+### Section 10: D3.js Heap Memory & Lifecycle Telemetry
+- **Heap Visualizer**: Real-time D3.js canvas plotting JavaScript heap allocation, GC sweep cycles, and AST buffer clearance.
+- **Memory Consent**: Allows users to choose between retaining raw files in memory or pruning to lightweight AST skeletons.
+
+### Section 11: Cryptographic Compliance & Merkle Ledger
+- **SHA-256 Merkle Root**: Computes an immutable cryptographic hash of audited files, tenant ID, and security findings.
+- **Verification Endpoint**: `POST /api/compliance/verify` verifies proof against the ledger with deterministic validation.
+
+### Section 12: Continuous WAL Point-In-Time-Recovery (PITR)
+- **Monotonic Sequence Numbers**: Every audit action is written to an append-only Write-Ahead Log (WAL).
+- **Disaster Recovery Targets**: Recovery Point Objective (RPO) < 15 minutes, Recovery Time Objective (RTO) < 1 hour.
+
+### Section 13: Zero Prompt Retention & GDPR Privacy Policy
+- **Zero Data Training**: Customer source code is processed in ephemeral memory buffers and never retained for model training.
+- **GDPR Article 17**: Enforces automated 30-day purge cycles and immediate tenant right-to-erasure workflows.
+
+### Section 14: Disaster Recovery & High-Availability SLA
+- **Uptime SLA**: 99.9% targeted availability across containerized cloud environments.
+- **Multi-Region Failover**: Primary processing in `EU-WEST-2` (London) with automated failover routing to `US-CENTRAL1`.
+
+---
+
 ## Prerequisites
 
 - **Node.js**: v18.0.0 or higher (or **Bun** v1.2.0+)

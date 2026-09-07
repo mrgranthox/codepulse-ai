@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { UploadSection } from './components/UploadSection';
 import { OverviewDashboard } from './components/OverviewDashboard';
@@ -14,13 +14,13 @@ import { ExportReportView } from './components/ExportReportView';
 import { ExecutionScanner } from './components/ExecutionScanner';
 import { StorylineStepper } from './components/StorylineStepper';
 import { AuditHistoryDrawer } from './components/AuditHistoryDrawer';
-import { C4SpecModal } from './components/C4SpecModal';
+import { EnterpriseGovernanceModals, GovernanceModalTab } from './components/EnterpriseGovernanceModals';
 import { ClearanceConsentModal } from './components/ClearanceConsentModal';
 import { SettingsModal } from './components/SettingsModal';
 import { MemoryPerformanceOverlay } from './components/MemoryPerformanceOverlay';
 import { ThemeProvider } from './context/ThemeContext';
 import { ActiveTab, CodeFile, AuditResult, AuditHistoryItem } from './types';
-import { AlertCircle, CheckCircle2, History, Cpu, Sparkles } from 'lucide-react';
+import { AlertCircle, CheckCircle2, History, Cpu, Sparkles, ShieldCheck, Lock } from 'lucide-react';
 import { optimizeFileMemory, previewMemoryOptimization, MemoryOptimizationPreview } from './utils/memoryOptimizer';
 
 const STORAGE_KEY = 'codepulse_audit_history_v2';
@@ -40,12 +40,37 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
-  const [isC4ModalOpen, setIsC4ModalOpen] = useState<boolean>(false);
+  const [isGovernanceOpen, setIsGovernanceOpen] = useState<boolean>(false);
+  const [governanceTab, setGovernanceTab] = useState<GovernanceModalTab>('about');
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isMemoryOverlayOpen, setIsMemoryOverlayOpen] = useState<boolean>(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined);
   const [isMemoryOptimized, setIsMemoryOptimized] = useState<boolean>(false);
+  const [sessionToken, setSessionToken] = useState<string>(() => sessionStorage.getItem('codepulse_session_token') || '');
+
+  useEffect(() => {
+    async function initSessionAuth() {
+      try {
+        const res = await fetch('/api/auth/session', { signal: AbortSignal.timeout(5000) });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.token) {
+            setSessionToken(data.token);
+            sessionStorage.setItem('codepulse_session_token', data.token);
+          }
+        }
+      } catch (e) {
+        console.warn('Session initialization fallback to local tenant auth', e);
+      }
+    }
+    initSessionAuth();
+  }, []);
+
+  const handleOpenGovernance = (tab?: GovernanceModalTab) => {
+    setGovernanceTab(tab || 'about');
+    setIsGovernanceOpen(true);
+  };
 
   // Deep-Memory Clearance Consent Modal state
   const [isClearanceModalOpen, setIsClearanceModalOpen] = useState<boolean>(false);
@@ -202,7 +227,11 @@ function AppContent() {
     try {
       const response = await fetch('/api/audit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {})
+        },
+        signal: AbortSignal.timeout(60000),
         body: JSON.stringify({
           files,
           repoName: repoName || 'Custom Codebase',
@@ -280,7 +309,11 @@ function AppContent() {
     try {
       const response = await fetch('/api/github-import', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {})
+        },
+        signal: AbortSignal.timeout(45000),
         body: JSON.stringify({
           repoUrl,
           maxFiles,
@@ -364,7 +397,6 @@ function AppContent() {
         hasFiles={files.length > 0}
         onOpenHistory={() => setIsHistoryOpen(true)}
         historyCount={auditHistory.length}
-        onOpenSpec={() => setIsC4ModalOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenMemory={() => setIsMemoryOverlayOpen(true)}
       />
@@ -436,7 +468,7 @@ function AppContent() {
             onReAudit={handleRunAudit}
             isLoading={isLoading}
             onOpenHistory={() => setIsHistoryOpen(true)}
-            onOpenSpec={() => setIsC4ModalOpen(true)}
+            onOpenGovernance={handleOpenGovernance}
             onOpenMemoryConsent={handleOpenMemoryConsent}
             onOpenMemoryOverlay={() => setIsMemoryOverlayOpen(true)}
             isMemoryOptimized={isMemoryOptimized}
@@ -493,8 +525,13 @@ function AppContent() {
         currentSessionId={currentSessionId}
       />
 
-      {/* C4 Engineering Specification Modal */}
-      <C4SpecModal isOpen={isC4ModalOpen} onClose={() => setIsC4ModalOpen(false)} />
+      {/* Enterprise Governance & Architecture Modals (About, Privacy, Terms, Verification) */}
+      <EnterpriseGovernanceModals
+        isOpen={isGovernanceOpen}
+        onClose={() => setIsGovernanceOpen(false)}
+        initialTab={governanceTab}
+        auditResult={auditResult}
+      />
 
       {/* Deep-Memory Clearance Consent Modal */}
       <ClearanceConsentModal
@@ -524,46 +561,61 @@ function AppContent() {
         historyCount={auditHistory.length}
       />
 
-      {/* Subtle Enterprise Footer */}
+      {/* Enterprise Governance Footer */}
       <footer className="border-t border-slate-800/80 dark:border-slate-800/80 light:border-slate-200 bg-[#090D16] dark:bg-[#090D16] light:bg-slate-100 py-4 mt-auto">
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 flex flex-col md:flex-row items-center justify-between gap-3 text-[11px] text-slate-400">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700">CodePulse AI</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700">CodePulse Enterprise AI</span>
             <span>•</span>
-            <span>Zero-Trust Enterprise Architecture & Security Engine</span>
+            <span>Zero-Trust AST Engine & Universal Code Auditor</span>
           </div>
-          <div className="flex items-center gap-3">
+
+          <div className="flex items-center gap-4 flex-wrap justify-center font-medium">
             <button
-              onClick={() => setIsMemoryOverlayOpen(true)}
-              className="text-slate-400 hover:text-emerald-400 flex items-center gap-1 transition-colors cursor-pointer"
+              type="button"
+              onClick={() => handleOpenGovernance('about')}
+              className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
             >
-              <Cpu className="w-3 h-3 text-emerald-400" />
-              <span>Heap Telemetry (D3)</span>
+              About & Architecture
             </button>
             <span>•</span>
             <button
+              type="button"
+              onClick={() => handleOpenGovernance('privacy')}
+              className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
+            >
+              Privacy Policy & Zero Retention
+            </button>
+            <span>•</span>
+            <button
+              type="button"
+              onClick={() => handleOpenGovernance('terms')}
+              className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
+            >
+              Terms & SLA
+            </button>
+            <span>•</span>
+            <button
+              type="button"
+              onClick={() => handleOpenGovernance('verify')}
+              className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors cursor-pointer font-semibold"
+            >
+              <Lock className="w-3 h-3" />
+              <span>Verify Integrity (SHA-256)</span>
+            </button>
+            <span>•</span>
+            <button
+              type="button"
               onClick={() => setIsSettingsOpen(true)}
-              className="text-slate-400 hover:text-indigo-400 flex items-center gap-1 transition-colors cursor-pointer"
+              className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
             >
-              <span>Settings</span>
+              Settings
             </button>
-            <span>•</span>
-            <button
-              onClick={() => setIsHistoryOpen(true)}
-              className="text-slate-400 hover:text-indigo-400 flex items-center gap-1 transition-colors cursor-pointer"
-            >
-              <History className="w-3 h-3 text-indigo-400" />
-              <span>Audit History ({auditHistory.length})</span>
-            </button>
-            <span>•</span>
-            <button
-              onClick={() => setIsC4ModalOpen(true)}
-              className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer flex items-center gap-1"
-            >
-              <span>Spec & Addendum (Sec 1–14)</span>
-            </button>
-            <span>•</span>
-            <span>Gemini 3.7 Flash</span>
+          </div>
+
+          <div className="text-[10px] font-mono text-slate-500">
+            EU-WEST-2 • Continuous WAL PITR • SOC2 Ready
           </div>
         </div>
       </footer>

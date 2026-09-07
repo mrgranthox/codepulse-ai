@@ -30,7 +30,9 @@
             root.setAttribute('data-theme', 'light');
             root.style.colorScheme = 'light';
           }
-        } catch(e) {}
+        } catch(e) {
+          console.warn('Theme initialization fallback applied:', e);
+        }
       })();
     </script>
   </head>

@@ -17,7 +17,11 @@ import { db } from '../db/connection';
 import jwt from 'jsonwebtoken';
 import { processStripePayment } from '../services/paymentService';
 
-const JWT_SECRET = 'hardcoded_jwt_secret_key_12345'; // Anti-pattern: Hardcoded secret
+// Securely loaded environment secret (CWE-798 defense)
+const JWT_SECRET = process.env.JWT_SIGNING_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SIGNING_SECRET environment variable is not configured');
+}
 
 export async function createOrder(req: Request, res: Response) {
   try {
@@ -26,35 +30,67 @@ export async function createOrder(req: Request, res: Response) {
       return res.status(401).json({ error: 'Missing token' });
     }
     
-    // Security flaw: verification without algorithm specification
-    const user: any = jwt.verify(authHeader.replace('Bearer ', ''), JWT_SECRET);
+    // Explicit cryptographic algorithm constraint (CWE-347 defense)
+    const user: any = jwt.verify(authHeader.replace('Bearer ', ''), JWT_SECRET, { algorithms: ['HS256'] });
     
     const { items, paymentMethodId, discountCode } = req.body;
     
-    // Vulnerability: Direct SQL string interpolation (SQL Injection)
-    const discountQuery = \`SELECT * FROM discounts WHERE code = '\${discountCode}' AND active = true\`;
-    const discountResult = await db.query(discountQuery);
+    // Parameterized query preventing SQL injection (CWE-89 defense)
+    const discountQuery = 'SELECT * FROM discounts WHERE code = $1 AND active = true';
+    const discountResult = await db.query(discountQuery, [discountCode]);
     
+    // Batch query to resolve N+1 performance bottleneck (SMELL-001 defense)
+    const productIds = items.map((i: any) => i.productId);
+    const productsResult = await db.query(
+      'SELECT id, price, inventory FROM products WHERE id = ANY($1)',
+      [productIds]
+    );
+    const productMap = new Map(productsResult.rows.map((p: any) => [p.id, p]));
+
     let total = 0;
-    // Performance Smell: N+1 query pattern inside loop without batching
     for (const item of items) {
-      const product = await db.query(\`SELECT price, inventory FROM products WHERE id = \${item.productId}\`);
-      total += product.rows[0].price * item.quantity;
+      const product = productMap.get(item.productId);
+      if (!product) {
+        return res.status(400).json({ error: \`Product \${item.productId} not found\` });
+      }
+      total += product.price * item.quantity;
     }
     
-    // Payment execution without distributed idempotent key
-    const payment = await processStripePayment(user.id, total, paymentMethodId);
-    
-    // Flaw: No database transaction rollback if receipt generation fails
-    const order = await db.query(
-      'INSERT INTO orders (user_id, amount, status, charge_id) VALUES ($1, $2, $3, $4) RETURNING id',
-      [user.id, total, 'PAID', payment.chargeId]
-    );
+    // ACID Transaction with rollback and idempotency key (SMELL-002 defense)
+    const client = await db.getClient();
+    let orderId: string;
+    try {
+      await client.query('BEGIN');
+      const order = await client.query(
+        'INSERT INTO orders (user_id, amount, status) VALUES ($1, $2, $3) RETURNING id',
+        [user.id, total, 'PENDING_PAYMENT']
+      );
+      orderId = order.rows[0].id;
 
-    return res.status(201).json({ orderId: order.rows[0].id, status: 'success' });
+      const payment = await processStripePayment(user.id, total, paymentMethodId, {
+        idempotencyKey: \`order_\${orderId}\`
+      });
+
+      await client.query(
+        'UPDATE orders SET status = $1, charge_id = $2 WHERE id = $3',
+        ['PAID', payment.chargeId, orderId]
+      );
+      await client.query('COMMIT');
+    } catch (txError) {
+      await client.query('ROLLBACK');
+      throw txError;
+    } finally {
+      client.release();
+    }
+
+    return res.status(201).json({ orderId, status: 'success' });
   } catch (err: any) {
-    // Security flaw: Leaking raw internal stack traces to client
-    return res.status(500).json({ error: 'Internal Server Error', stack: err.stack });
+    // Sanitized production error logging avoiding internal stack trace leakage (CWE-209 defense)
+    console.error('Order creation failed:', { error: err.message, correlationId: req.headers['x-request-id'] });
+    return res.status(500).json({ 
+      error: 'An error occurred while processing your order. Please try again.',
+      code: 'ORDER_PROCESSING_FAILED'
+    });
   }
 }
 `
@@ -65,20 +101,30 @@ export async function createOrder(req: Request, res: Response) {
         language: 'typescript',
         content: `import axios from 'axios';
 
-// Missing circuit breaker & timeout configuration
-export async function processStripePayment(userId: string, amount: number, paymentMethodId: string) {
+// Resilient third-party payment integration with circuit breaker timeout (SMELL-003 defense)
+export async function processStripePayment(
+  userId: string, 
+  amount: number, 
+  paymentMethodId: string, 
+  options: { idempotencyKey?: string } = {}
+) {
   const stripeUrl = 'https://api.stripe.com/v1/charges';
   
-  // Anti-pattern: Tight coupling with synchronous HTTP calls without retry or fallback
+  const headers: Record<string, string> = {
+    'Authorization': \`Bearer \${process.env.STRIPE_SECRET_KEY}\`
+  };
+  if (options.idempotencyKey) {
+    headers['Idempotency-Key'] = options.idempotencyKey;
+  }
+
   const response = await axios.post(stripeUrl, {
     amount: amount * 100,
     currency: 'usd',
     customer: userId,
     source: paymentMethodId,
   }, {
-    headers: {
-      'Authorization': \`Bearer \${process.env.STRIPE_SECRET_KEY}\`
-    }
+    headers,
+    timeout: 5000 // 5-second circuit breaker threshold
   });
 
   return { chargeId: response.data.id, status: response.data.status };
@@ -105,34 +151,38 @@ from services.vector_store import embed_and_upsert
 
 router = APIRouter(prefix="/v1/documents")
 
-# Global memory buffer holding un-evicted documents (Memory Leak smell)
-DOCUMENT_CACHE = []
+ALLOWED_MIMETYPES = {"text/plain", "application/pdf", "image/png", "image/jpeg"}
+ALLOWED_EXTENSIONS = {".txt", ".pdf", ".png", ".jpg"}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB bounded limit
+
+def fileFilter(filename: str, mimetype: str) -> bool:
+    ext = os.path.splitext(filename)[1].lower()
+    return ext in ALLOWED_EXTENSIONS and mimetype in ALLOWED_MIMETYPES
 
 @router.post("/upload")
 async def upload_document(file: UploadFile = File(...), extract_ocr: bool = False):
+    if not fileFilter(file.filename or "", file.content_type or ""):
+        raise HTTPException(status_code=400, detail="Invalid file extension or MIME type")
+        
     file_bytes = await file.read()
-    temp_path = f"/tmp/{file.filename}"
+    if len(file_bytes) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="File size exceeds threshold")
+        
+    safe_filename = os.path.basename(file.filename).replace("..", "")
+    temp_path = os.path.join("/tmp", safe_filename)
     
     with open(temp_path, "wb") as f:
         f.write(file_bytes)
         
-    DOCUMENT_CACHE.append(file_bytes) # Memory Leak: unbounded memory growth
-    
     if extract_ocr:
-        # CRITICAL VULNERABILITY: Unsanitized command injection via filename
-        cmd = f"tesseract {temp_path} stdout"
-        output = os.popen(cmd).read()
+        # Parameterized subprocess execution avoiding shell command injection
+        proc = subprocess.run(["tesseract", temp_path, "stdout"], capture_output=True, text=True, check=True)
+        output = proc.stdout
     else:
         output = file_bytes.decode("utf-8", errors="ignore")
         
-    # Unhandled async task without worker pool
-    try:
-        embed_and_upsert(file.filename, output)
-    except Exception as e:
-        # Anti-pattern: Silent error swallowing
-        pass
-
-    return {"filename": file.filename, "status": "processed", "length": len(output)}
+    embed_and_upsert(safe_filename, output)
+    return {"filename": safe_filename, "status": "processed", "length": len(output)}
 `
       },
       {
@@ -347,8 +397,8 @@ if (!JWT_SECRET) {
       vulnerableCode: `return res.status(500).json({ error: 'Internal Server Error', stack: err.stack });`,
       description: 'Uncaught exceptions return the full runtime call stack, including internal file paths, framework versions, and database topology.',
       impact: 'Provides reconnaissance data to malicious actors detailing system internals and directory structures.',
-      remediationCode: `// Log stack trace internally to telemetry, return sanitized error message to client
-logger.error('Order creation failed', { error: err.message, stack: err.stack });
+      remediationCode: `// Log error internally to telemetry, return sanitized error message to client
+logger.error('Order creation failed', { error: err.message });
 return res.status(500).json({ 
   error: 'An error occurred while processing your order. Please try again.',
   code: 'ORDER_PROCESSING_FAILED'

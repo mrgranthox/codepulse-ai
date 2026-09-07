@@ -28,7 +28,6 @@ interface HeaderProps {
   hasFiles: boolean;
   onOpenHistory: () => void;
   historyCount: number;
-  onOpenSpec?: () => void;
   onOpenSettings?: () => void;
   onOpenMemory?: () => void;
 }
@@ -43,7 +42,6 @@ export const Header: React.FC<HeaderProps> = ({
   hasFiles,
   onOpenHistory,
   historyCount,
-  onOpenSpec,
   onOpenSettings,
   onOpenMemory
 }) => {
@@ -127,20 +125,6 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <Cpu className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span className="hidden lg:inline">Memory</span>
-              </button>
-            )}
-
-            {/* Architecture Spec & Addendum Button */}
-            {onOpenSpec && (
-              <button
-                type="button"
-                onClick={onOpenSpec}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900/80 dark:bg-slate-900/80 light:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-800 light:hover:bg-slate-200 border border-slate-800 dark:border-slate-800 light:border-slate-300 text-xs font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-indigo-400 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer min-h-[40px]"
-                title="View Enterprise Architecture & Addendum (Sections 1-14)"
-              >
-                <Shield className="w-4 h-4 text-indigo-400 shrink-0" />
-                <span className="hidden xl:inline">Spec (Sec 1-14)</span>
-                <span className="xl:hidden">Spec</span>
               </button>
             )}
 
@@ -307,20 +291,6 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <Cpu className="w-4 h-4 text-emerald-400" />
                 <span>Memory Performance & Heap Telemetry</span>
-              </button>
-            )}
-
-            {onOpenSpec && (
-              <button
-                type="button"
-                onClick={() => {
-                  onOpenSpec();
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-slate-900 dark:bg-slate-900 light:bg-slate-100 text-slate-300 text-xs font-semibold"
-              >
-                <Shield className="w-4 h-4 text-indigo-400" />
-                <span>Architecture Specification (Sections 1-14)</span>
               </button>
             )}
 

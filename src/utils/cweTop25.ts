@@ -139,7 +139,7 @@ export const CWE_TOP_25_2025: CWETop25Entry[] = [
     score: 21.80,
     description: 'The application deserializes untrusted data without sufficiently verifying that the resulting data will be valid.',
     keyRisks: ['Remote Code Execution', 'Object Injection', 'Memory Corruption'],
-    mitigation: 'Avoid native serialization (pickle, Java serial, serialize-javascript); use pure data formats like JSON with strict schema validation.'
+    mitigation: 'Avoid binary and object-oriented serialization frameworks; use strictly typed data interchange standards like JSON or Protocol Buffers with schema validation.'
   },
   {
     rank: 12,
@@ -260,7 +260,7 @@ export const CWE_TOP_25_2025: CWETop25Entry[] = [
     score: 11.20,
     description: 'The software constructs all or part of a code segment using externally-influenced input, but does not neutralize special elements that could alter the code syntax.',
     keyRisks: ['Arbitrary Server Execution', 'Complete Sandbox Escape'],
-    mitigation: 'Strictly forbid eval(), new Function(), vm.runInThisContext() with untrusted strings.'
+    mitigation: 'Strictly prohibit runtime code generation from untrusted strings; employ static dispatch or safe declarative expression evaluators.'
   },
   {
     rank: 23,

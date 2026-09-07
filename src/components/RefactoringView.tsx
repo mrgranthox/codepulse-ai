@@ -416,17 +416,30 @@ export const RefactoringView: React.FC<RefactoringViewProps> = ({
     setTimeout(() => setCopiedStatus(null), 2500);
   };
 
-  // Apply patch handler
-  const handleApplyPatch = (targetPath?: string, targetCode?: string) => {
+  // Apply patch handler with intelligent snippet replacement
+  const handleApplyPatch = (targetPath?: string, targetCode?: string, originalSnippet?: string) => {
     const filePath = targetPath || activeFileItem?.path;
-    const codeToApply = targetCode || fullRefactoredCode;
-    if (!filePath || !codeToApply) return;
+    if (!filePath) return;
+
+    let codeToApply: string;
+    if (originalSnippet && targetCode) {
+      const file = files.find((f) => f.path === filePath || f.name === filePath);
+      if (file && file.content && file.content.includes(originalSnippet)) {
+        codeToApply = file.content.replace(originalSnippet, targetCode);
+      } else {
+        codeToApply = targetCode;
+      }
+    } else {
+      codeToApply = targetCode || fullRefactoredCode;
+    }
+
+    if (!codeToApply) return;
 
     if (onUpdateFileContent) {
       onUpdateFileContent(filePath, codeToApply);
     }
     const fileName = filePath.split('/').pop() || filePath;
-    setAppliedToast(`Applied AI refactoring patch to ${fileName}`);
+    setAppliedToast(`Applied patch to ${fileName}`);
     setTimeout(() => setAppliedToast(null), 3000);
   };
 
@@ -1024,7 +1037,7 @@ export const RefactoringView: React.FC<RefactoringViewProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => handleApplyPatch(item.filePath, item.refactoredSnippet)}
+                        onClick={() => handleApplyPatch(item.filePath, item.refactoredSnippet, item.originalSnippet)}
                         className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                         title="Apply Refactoring"
                       >

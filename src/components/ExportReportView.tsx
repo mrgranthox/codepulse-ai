@@ -16,6 +16,7 @@ import {
 import JSZip from 'jszip';
 import { AuditResult, ActiveTab } from '../types';
 import { StorylineFooter } from './StorylineFooter';
+import { sanitizeMermaidChart } from './MermaidRenderer';
 
 interface ExportReportViewProps {
   auditResult: AuditResult | null;
@@ -65,7 +66,7 @@ ${summary.keyTakeaways.map((k) => `- ${k}`).join('\n')}
 
 ## 2. Architecture & Linkage Overview
 \`\`\`mermaid
-${architecture.mermaidDefinition}
+${sanitizeMermaidChart(architecture.mermaidDefinition)}
 \`\`\`
 
 ### Architectural Risks:
@@ -137,7 +138,7 @@ ${smell.refactoredCode}
       // 2. Architecture Folder
       const archFolder = zip.folder('architecture');
       if (archFolder) {
-        archFolder.file('architecture-diagram.mmd', architecture.mermaidDefinition);
+        archFolder.file('architecture-diagram.mmd', sanitizeMermaidChart(architecture.mermaidDefinition));
         archFolder.file('components.json', JSON.stringify(architecture.components, null, 2));
         archFolder.file('data-flows.json', JSON.stringify(architecture.dataFlows, null, 2));
         archFolder.file(
