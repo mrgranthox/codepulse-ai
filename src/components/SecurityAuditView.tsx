@@ -171,11 +171,11 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
             </p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             <button
               type="button"
               onClick={handleToggleAll}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition-colors cursor-pointer"
+              className="flex-1 sm:flex-initial px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition-colors cursor-pointer min-h-[44px]"
             >
               {allExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               <span>{allExpanded ? 'Collapse All' : 'Expand All'}</span>
@@ -184,7 +184,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
             <button
               type="button"
               onClick={handleExportJson}
-              className="px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 text-xs font-semibold flex items-center gap-1.5 border border-indigo-500/40 transition-colors cursor-pointer"
+              className="flex-1 sm:flex-initial px-3 py-2 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-indigo-500/40 transition-colors cursor-pointer min-h-[44px]"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Export Audit ({findings.length})</span>
@@ -206,9 +206,9 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
                 <button
                   key={sev}
                   onClick={() => setSelectedSeverity(sev)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  className={`px-3 py-2 rounded-md text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap cursor-pointer min-h-[40px] ${
                     selectedSeverity === sev
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/30'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/30 font-bold'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                   }`}
                 >
@@ -224,13 +224,13 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
           </div>
 
           {/* OWASP Category Dropdown */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full md:w-auto">
             <Filter className="w-3.5 h-3.5 text-slate-500 shrink-0" />
             <select
               value={selectedOwasp}
               onChange={(e) => setSelectedOwasp(e.target.value)}
               aria-label="Filter by OWASP Category"
-              className="bg-[#0B0F17] border border-slate-800 text-xs text-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500 w-full md:w-auto"
+              className="bg-[#0B0F17] border border-slate-800 text-xs text-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 w-full md:w-auto min-h-[40px]"
             >
               <option value="All">All OWASP Categories ({findings.length})</option>
               {owaspCategories.map(({ category, count }) => (
@@ -330,15 +330,15 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
-                    <span className="text-xs font-mono text-slate-400 bg-slate-950 px-3 py-1 rounded-lg border border-slate-800 flex items-center gap-1.5 font-medium">
-                      <FileCode2 className="w-3.5 h-3.5 text-indigo-400" />
-                      {finding.filePath}:{finding.lineStart}-{finding.lineEnd}
+                  <div className="flex items-center justify-between sm:justify-end gap-2.5 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/60">
+                    <span className="text-xs font-mono text-slate-400 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-1.5 font-medium truncate max-w-[260px] sm:max-w-xs">
+                      <FileCode2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                      <span className="truncate">{finding.filePath}:{finding.lineStart}-{finding.lineEnd}</span>
                     </span>
                     <button
                       type="button"
                       aria-label="Toggle details"
-                      className="p-1 text-slate-400 hover:text-white"
+                      className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
                     >
                       {isCardOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </button>

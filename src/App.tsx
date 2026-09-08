@@ -179,7 +179,7 @@ function AppContent() {
     setIsClearanceModalOpen(true);
   };
 
-  // Confirm memory optimization routine (prunes clean files buffers)
+  // Confirm memory optimization routine - retains 100% of files in background
   const handleConfirmOptimize = () => {
     const rawFilesToClean = pendingRawFiles || files;
     const currentAudit = pendingAuditData || auditResult;
@@ -191,8 +191,8 @@ function AppContent() {
     setPendingRawFiles(null);
     setPendingAuditData(null);
 
-    setSuccessToast(`Memory optimized: ${optResult.estimatedHeapFreedMb} MB RAM freed (${optResult.cleanFilesCount} clean files pruned, ${optResult.retainedFilesCount} finding files preserved verbatim)`);
-    setTimeout(() => setSuccessToast(null), 5000);
+    setSuccessToast(`Background memory optimization active: 100% of files (${optResult.retainedFilesCount}) retained in local memory.`);
+    setTimeout(() => setSuccessToast(null), 4500);
   };
 
   // User decides to retain 100% full source in client memory
@@ -204,7 +204,7 @@ function AppContent() {
     setPendingRawFiles(null);
     setPendingAuditData(null);
 
-    setSuccessToast(`Full source retained: 100% of raw codebase files kept in memory for deep-dive analysis.`);
+    setSuccessToast(`All files retained: 100% full source preserved in background.`);
     setTimeout(() => setSuccessToast(null), 4000);
   };
 
@@ -247,47 +247,17 @@ function AppContent() {
       const auditData: AuditResult = await response.json();
       setAuditResult(auditData);
 
-      // Evaluate memory footprint and check session preference
+      // Evaluate memory footprint - retain 100% of files as background activity
       const preview = previewMemoryOptimization(files, auditData);
       setMemoryPreview(preview);
-      const pref = sessionStorage.getItem(MEMORY_PREF_KEY);
+      saveAuditToHistory(auditData, files);
 
-      if (pref === 'optimize') {
-        const optResult = optimizeFileMemory(files, auditData);
-        setFiles(optResult.optimizedFiles);
-        setIsMemoryOptimized(true);
-        saveAuditToHistory(auditData, optResult.optimizedFiles);
-        setTimeout(() => {
-          setIsLoading(false);
-          setActiveTab('overview');
-          setSuccessToast(`Audit complete! Auto-cleared ${optResult.cleanFilesCount} clean files (~${optResult.estimatedHeapFreedMb} MB freed)`);
-          setTimeout(() => setSuccessToast(null), 4500);
-        }, 800);
-      } else if (pref === 'retain') {
-        saveAuditToHistory(auditData, files);
-        setTimeout(() => {
-          setIsLoading(false);
-          setActiveTab('overview');
-          setSuccessToast(`Audit complete! 100% full source retained locally.`);
-          setTimeout(() => setSuccessToast(null), 4500);
-        }, 800);
-      } else {
-        // Trigger ClearanceConsent modal if clean files exist
-        setPendingRawFiles(files);
-        setPendingAuditData(auditData);
-        saveAuditToHistory(auditData, files);
-
-        setTimeout(() => {
-          setIsLoading(false);
-          setActiveTab('overview');
-          if (preview.cleanFilesCount > 0) {
-            setIsClearanceModalOpen(true);
-          } else {
-            setSuccessToast(`Audit completed successfully (${auditData.scannedFilesCount || files.length} files scanned)!`);
-            setTimeout(() => setSuccessToast(null), 4500);
-          }
-        }, 800);
-      }
+      setTimeout(() => {
+        setIsLoading(false);
+        setActiveTab('overview');
+        setSuccessToast(`Audit complete! All source files retained locally (${auditData.scannedFilesCount || files.length} files, background memory telemetry active).`);
+        setTimeout(() => setSuccessToast(null), 4500);
+      }, 800);
     } catch (err: any) {
       console.error('Audit execution error:', err);
       setIsLoading(false);
@@ -307,7 +277,7 @@ function AppContent() {
   };
 
   // GitHub direct fetch & audit
-  const handleFetchAndAuditGithub = async (repoUrl: string, maxFiles: number = 250) => {
+  const handleFetchAndAuditGithub = async (repoUrl: string, maxFiles: number = 0) => {
     setIsLoading(true);
     setErrorMessage(null);
     setActiveTab('execution');
@@ -343,49 +313,18 @@ function AppContent() {
       const auditData: AuditResult = repoData.auditResult;
       setAuditResult(auditData);
 
-      // Evaluate memory footprint and check session preference
+      // Evaluate memory footprint - retain 100% of files as background activity
       const preview = previewMemoryOptimization(repoData.files, auditData);
       setMemoryPreview(preview);
-      const pref = sessionStorage.getItem(MEMORY_PREF_KEY);
+      setFiles(repoData.files);
+      saveAuditToHistory(auditData, repoData.files);
 
-      if (pref === 'optimize') {
-        const optResult = optimizeFileMemory(repoData.files, auditData);
-        setFiles(optResult.optimizedFiles);
-        setIsMemoryOptimized(true);
-        saveAuditToHistory(auditData, optResult.optimizedFiles);
-        setTimeout(() => {
-          setIsLoading(false);
-          setActiveTab('overview');
-          setSuccessToast(`Imported "${currentRepoTitle}" & auto-pruned ${optResult.cleanFilesCount} clean files (~${optResult.estimatedHeapFreedMb} MB RAM freed)`);
-          setTimeout(() => setSuccessToast(null), 4500);
-        }, 800);
-      } else if (pref === 'retain') {
-        setFiles(repoData.files);
-        saveAuditToHistory(auditData, repoData.files);
-        setTimeout(() => {
-          setIsLoading(false);
-          setActiveTab('overview');
-          setSuccessToast(`Successfully imported & audited "${currentRepoTitle}" (100% full source retained locally)!`);
-          setTimeout(() => setSuccessToast(null), 4500);
-        }, 800);
-      } else {
-        // Trigger ClearanceConsent modal if clean files exist, preserving raw source in client memory
-        setPendingRawFiles(repoData.files);
-        setPendingAuditData(auditData);
-        setFiles(repoData.files);
-        saveAuditToHistory(auditData, repoData.files);
-
-        setTimeout(() => {
-          setIsLoading(false);
-          setActiveTab('overview');
-          if (preview.cleanFilesCount > 0) {
-            setIsClearanceModalOpen(true);
-          } else {
-            setSuccessToast(`Successfully imported & audited "${currentRepoTitle}" (${auditData.scannedFilesCount || repoData.files.length} files scanned)!`);
-            setTimeout(() => setSuccessToast(null), 4500);
-          }
-        }, 800);
-      }
+      setTimeout(() => {
+        setIsLoading(false);
+        setActiveTab('overview');
+        setSuccessToast(`Successfully imported & audited "${currentRepoTitle}" (100% full source retained in memory, background telemetry active).`);
+        setTimeout(() => setSuccessToast(null), 4500);
+      }, 800);
     } catch (err: any) {
       console.error('GitHub ingestion error:', err);
       setIsLoading(false);

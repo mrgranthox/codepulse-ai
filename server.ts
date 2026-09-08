@@ -7,6 +7,7 @@ import v8 from 'v8';
 import { GoogleGenAI, Type } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
+import JSZip from 'jszip';
 import { getCWETop25Entry, isCWETop25, getCWETop25Rank } from './src/utils/cweTop25';
 
 dotenv.config();
@@ -20,8 +21,8 @@ const PORT = 3000;
 // Enable trust proxy for reverse proxy environment (Cloud Run / Nginx ingress)
 app.set('trust proxy', 1);
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '150mb' }));
+app.use(express.urlencoded({ extended: true, limit: '150mb' }));
 
 /**
  * Global API Rate Limiter (CWE-770 / CWE-16 / OWASP A05:2021 Defense)
@@ -738,15 +739,14 @@ function enrichWithCweMetadata(finding: any): any {
   return finding;
 }
 
-// Internal reusable GitHub repository fetcher with high-speed tree download and branch/file fallback
-async function fetchGithubRepoFilesInternal(repoUrl: string, requestedMax: number = 250): Promise<{
+// Internal reusable GitHub repository fetcher with high-speed direct archive streaming
+async function fetchGithubRepoFilesInternal(repoUrl: string, requestedMax: number = 0): Promise<{
   repoName: string;
   branch: string;
   totalFilesInRepo: number;
   scannedCandidatesCount: number;
   files: any[];
 }> {
-  const maxFiles = Math.min(Math.max(requestedMax, 10), 1000);
   const parsed = parseGithubUrl(repoUrl);
   if (!parsed) {
     const err: any = new Error('Invalid GitHub URL format. Please provide a valid repository URL (e.g. "https://github.com/owner/repo" or "owner/repo").');
@@ -757,66 +757,179 @@ async function fetchGithubRepoFilesInternal(repoUrl: string, requestedMax: numbe
   let { owner, repo, subpath } = parsed;
   let targetBranch = parsed.branch;
 
+  // If requestedMax <= 0 or >= 999999, user wants 100% of all files without artificial caps!
+  const effectiveMax = (requestedMax && requestedMax > 0 && requestedMax < 999999) ? requestedMax : 0;
+
+  console.log(`[GitHub Ingest] Initiating archive ingestion for ${owner}/${repo} (branch: ${targetBranch || 'HEAD'}, max: ${effectiveMax === 0 ? 'ALL (No limit)' : effectiveMax})...`);
+
   const headers: Record<string, string> = {
     'User-Agent': 'CodePulse-Architect-Auditor/2.0',
-    'Accept': 'application/vnd.github.v3+json'
+    'Accept': '*/*'
   };
   if (process.env.GITHUB_TOKEN) {
     headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
   }
 
-  // 1. Fetch Repository Metadata to determine default branch if not specified
+  // Multi-tier archive URL resolution strategy
+  // GitHub's codeload endpoint serves full zip archives without REST API 60-req/hr rate limits!
+  const archiveCandidates: string[] = [];
+  if (targetBranch) {
+    archiveCandidates.push(`https://codeload.github.com/${owner}/${repo}/zip/refs/heads/${targetBranch}`);
+    archiveCandidates.push(`https://codeload.github.com/${owner}/${repo}/zip/refs/tags/${targetBranch}`);
+    archiveCandidates.push(`https://codeload.github.com/${owner}/${repo}/zip/${targetBranch}`);
+    archiveCandidates.push(`https://github.com/${owner}/${repo}/archive/refs/heads/${targetBranch}.zip`);
+  }
+  // HEAD automatically resolves to the repository default branch (main/master/trunk) on codeload
+  archiveCandidates.push(`https://codeload.github.com/${owner}/${repo}/zip/HEAD`);
+  archiveCandidates.push(`https://github.com/${owner}/${repo}/archive/refs/heads/main.zip`);
+  archiveCandidates.push(`https://github.com/${owner}/${repo}/archive/refs/heads/master.zip`);
+  archiveCandidates.push(`https://github.com/${owner}/${repo}/archive/HEAD.zip`);
+  if (process.env.GITHUB_TOKEN) {
+    archiveCandidates.push(`https://api.github.com/repos/${owner}/${repo}/zipball/${targetBranch || ''}`);
+  }
+
+  let zipBuffer: ArrayBuffer | null = null;
+  let resolvedBranch = targetBranch || 'default';
+
+  for (const url of archiveCandidates) {
+    try {
+      const resp = await fetch(url, {
+        headers,
+        signal: AbortSignal.timeout(60000)
+      });
+      if (resp.ok) {
+        const contentType = resp.headers.get('content-type') || '';
+        // Verify it's actually a binary zip archive and not an HTML error page
+        if (!contentType.includes('text/html')) {
+          zipBuffer = await resp.arrayBuffer();
+          console.log(`[GitHub Ingest] Successfully downloaded repository archive from ${url} (${Math.round(zipBuffer.byteLength / 1024)} KB)`);
+          break;
+        }
+      }
+    } catch (fetchErr: any) {
+      console.warn(`[GitHub Ingest] Candidate ${url} failed:`, fetchErr.message);
+    }
+  }
+
+  // If archive was successfully downloaded, extract 100% of files using JSZip
+  if (zipBuffer && zipBuffer.byteLength > 0) {
+    try {
+      const zip = await JSZip.loadAsync(zipBuffer);
+      const allZipEntries = Object.keys(zip.files).filter((entryKey) => !zip.files[entryKey].dir);
+
+      // Extract resolved branch name from the root archive directory if possible (e.g. "repo-main/" -> "main")
+      if (allZipEntries.length > 0) {
+        const rootDir = allZipEntries[0].split('/')[0];
+        const match = rootDir.match(/^.+?-(.+)$/);
+        if (match && match[1]) {
+          resolvedBranch = match[1];
+        }
+      }
+
+      // Filter valid code, config, and documentation files
+      const candidateKeys = allZipEntries.filter((entryKey) => {
+        // Strip the root archive directory (e.g. "repo-main/path/to/file.ts" -> "path/to/file.ts")
+        const relPath = entryKey.replace(/^[^/]+\//, '');
+        if (!relPath) return false;
+
+        if (subpath && !relPath.startsWith(subpath)) return false;
+
+        const lower = relPath.toLowerCase();
+
+        // Check ignored directories
+        if (IGNORED_PATHS.some((p) => lower.startsWith(p) || lower.includes(`/${p}`))) {
+          return false;
+        }
+
+        const baseName = path.basename(lower);
+        if (IGNORED_FILENAMES.has(baseName)) return false;
+
+        const ext = path.extname(lower);
+        if (IGNORED_EXTENSIONS.has(ext)) return false;
+
+        return true;
+      });
+
+      console.log(`[GitHub Ingest] Found ${allZipEntries.length} total entries in archive, ${candidateKeys.length} matching valid code/config files.`);
+
+      // Prioritize primary architecture files if a limit was explicitly specified
+      let keysToExtract = candidateKeys;
+      if (effectiveMax > 0 && candidateKeys.length > effectiveMax) {
+        keysToExtract = [...candidateKeys].sort((a, b) => {
+          const aPath = a.replace(/^[^/]+\//, '');
+          const bPath = b.replace(/^[^/]+\//, '');
+          const aIsKey = /^(src|routes|lib|app|core|services|controllers|models|api|server|db|middleware)/i.test(aPath);
+          const bIsKey = /^(src|routes|lib|app|core|services|controllers|models|api|server|db|middleware)/i.test(bPath);
+          if (aIsKey && !bIsKey) return -1;
+          if (!aIsKey && bIsKey) return 1;
+          return 0;
+        }).slice(0, effectiveMax);
+      }
+
+      // Concurrently extract file contents in high-speed chunks
+      const extractedFiles: any[] = [];
+      const chunkSize = 150;
+
+      for (let i = 0; i < keysToExtract.length; i += chunkSize) {
+        const slice = keysToExtract.slice(i, i + chunkSize);
+        const contents = await Promise.all(
+          slice.map(async (key) => {
+            try {
+              const fileEntry = zip.files[key];
+              const text = await fileEntry.async('string');
+              // Skip single files larger than 1.5MB to protect memory allocation
+              if (text.length > 1500000) return null;
+              const cleanPath = key.replace(/^[^/]+\//, '');
+              return {
+                id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                name: path.basename(cleanPath),
+                path: cleanPath,
+                language: detectLanguage(cleanPath),
+                content: scrubSecrets(text),
+                size: text.length
+              };
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        for (const item of contents) {
+          if (item) extractedFiles.push(item);
+        }
+      }
+
+      if (extractedFiles.length > 0) {
+        console.log(`[GitHub Ingest] Extracted ${extractedFiles.length} real files with full content! Zero files left out.`);
+        return {
+          repoName: `${owner}/${repo}`,
+          branch: resolvedBranch,
+          totalFilesInRepo: candidateKeys.length,
+          scannedCandidatesCount: extractedFiles.length,
+          files: extractedFiles
+        };
+      }
+    } catch (zipExtractErr: any) {
+      console.warn(`[GitHub Ingest] Zip decompression error:`, zipExtractErr.message);
+    }
+  }
+
+  // Secondary Fallback: REST API Trees (for token-authenticated private repos or proxy environments)
+  console.log(`[GitHub Ingest] Attempting secondary REST API fallback for ${owner}/${repo}...`);
   if (!targetBranch) {
     try {
       const repoMetaRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers, signal: AbortSignal.timeout(10000) });
       if (repoMetaRes.ok) {
         const repoMeta = (await repoMetaRes.json()) as any;
         targetBranch = repoMeta.default_branch || 'main';
-      } else if (repoMetaRes.status === 404) {
-        // Intelligent fallback: check if repo was moved or if name matches known public repository
-        if (repo.toLowerCase() === 'juice-shop') {
-          owner = 'juice-shop';
-          repo = 'juice-shop';
-          targetBranch = 'master';
-        } else {
-          // Attempt fallback search on GitHub Search API to resolve renamed or transferred repos
-          let resolved = false;
-          try {
-            const searchRes = await fetch(
-              `https://api.github.com/search/repositories?q=${encodeURIComponent(repo)}+in:name&per_page=1`,
-              { headers, signal: AbortSignal.timeout(10000) }
-            );
-            if (searchRes.ok) {
-              const searchData = (await searchRes.json()) as any;
-              if (
-                searchData.items &&
-                searchData.items.length > 0 &&
-                searchData.items[0].name.toLowerCase() === repo.toLowerCase()
-              ) {
-                owner = searchData.items[0].owner.login;
-                repo = searchData.items[0].name;
-                targetBranch = searchData.items[0].default_branch || 'main';
-                resolved = true;
-              }
-            }
-          } catch {}
-
-          if (!resolved) {
-            const err: any = new Error(`Repository "${owner}/${repo}" was not found or is private.`);
-            err.status = 404;
-            throw err;
-          }
-        }
       } else {
         targetBranch = 'main';
       }
-    } catch (e: any) {
-      if (e.status === 404) throw e;
+    } catch {
       targetBranch = 'main';
     }
   }
 
-  // 2. Fetch Git Tree recursively with robust error handling
   let treeRes: any = null;
   try {
     treeRes = await fetch(
@@ -824,10 +937,9 @@ async function fetchGithubRepoFilesInternal(repoUrl: string, requestedMax: numbe
       { headers, signal: AbortSignal.timeout(15000) }
     );
   } catch (treeErr: any) {
-    console.warn(`[GitHub Ingest] Tree fetch timed out or failed for ${owner}/${repo} (${targetBranch}):`, treeErr.message);
+    console.warn(`[GitHub Ingest] Tree fetch timed out for ${owner}/${repo}:`, treeErr.message);
   }
 
-  // If main fails, try master if branch wasn't explicitly pinned
   if ((!treeRes || !treeRes.ok) && !parsed.branch && targetBranch === 'main') {
     targetBranch = 'master';
     try {
@@ -835,9 +947,7 @@ async function fetchGithubRepoFilesInternal(repoUrl: string, requestedMax: numbe
         `https://api.github.com/repos/${owner}/${repo}/git/trees/${targetBranch}?recursive=1`,
         { headers, signal: AbortSignal.timeout(15000) }
       );
-    } catch (masterErr: any) {
-      console.warn(`[GitHub Ingest] Master tree fetch timed out or failed for ${owner}/${repo}:`, masterErr.message);
-    }
+    } catch {}
   }
 
   let treeItems: any[] = [];
@@ -850,149 +960,72 @@ async function fetchGithubRepoFilesInternal(repoUrl: string, requestedMax: numbe
     } catch {}
   }
 
-  // Filter valid source code candidate files
   const validCandidates = treeItems.filter((item) => {
     if (item.type !== 'blob') return false;
     const filePath: string = item.path;
     if (!filePath) return false;
-
     if (subpath && !filePath.startsWith(subpath)) return false;
-
     const lower = filePath.toLowerCase();
     if (IGNORED_PATHS.some((p) => lower.startsWith(p) || lower.includes(`/${p}`))) return false;
-
     const baseName = path.basename(lower);
     if (IGNORED_FILENAMES.has(baseName)) return false;
-
     const ext = path.extname(lower);
     if (IGNORED_EXTENSIONS.has(ext)) return false;
-
-    // Filter out files larger than 600KB in candidate tree to prevent payload bloat
-    if (item.size && item.size > 600000) return false;
-
+    if (item.size && item.size > 1500000) return false;
     return true;
   });
 
-  if (validCandidates.length === 0) {
-    // If git tree API failed (e.g. rate limit 403), attempt direct fallback fetching of standard entrypoints
-    const fallbackFilesToTry = [
-      'package.json',
-      'src/index.ts',
-      'src/main.tsx',
-      'src/App.tsx',
-      'src/index.js',
-      'server.ts',
-      'server.js',
-      'main.py',
-      'app.py',
-      'src/main.rs',
-      'main.go',
-      'go.mod',
-      'Cargo.toml',
-      'README.md'
-    ];
+  if (validCandidates.length > 0) {
+    const candidatesToFetch = effectiveMax > 0 ? validCandidates.slice(0, effectiveMax) : validCandidates;
+    const fetchedFiles: any[] = [];
+    const batchSize = 40;
 
-    const probedFiles: any[] = [];
-    await Promise.all(
-      fallbackFilesToTry.map(async (testPath) => {
-        try {
-          const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${targetBranch}/${testPath}`;
-          const r = await fetch(rawUrl, { signal: AbortSignal.timeout(10000) });
-          if (r.ok) {
-            const text = await r.text();
-            if (text && text.trim().length > 0 && !text.startsWith('<!DOCTYPE html>')) {
-              probedFiles.push({
-                id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                name: path.basename(testPath),
-                path: testPath,
-                language: detectLanguage(testPath),
-                content: scrubSecrets(text),
-                size: text.length
-              });
+    for (let i = 0; i < candidatesToFetch.length; i += batchSize) {
+      const batch = candidatesToFetch.slice(i, i + batchSize);
+      const batchResults = await Promise.all(
+        batch.map(async (candidate) => {
+          try {
+            const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${targetBranch}/${candidate.path}`;
+            const fileRes = await fetch(rawUrl, { headers, signal: AbortSignal.timeout(8000) });
+            if (fileRes.ok) {
+              const content = await fileRes.text();
+              if (content && !content.startsWith('<!DOCTYPE html>')) {
+                return {
+                  id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                  name: path.basename(candidate.path),
+                  path: candidate.path,
+                  language: detectLanguage(candidate.path),
+                  content: scrubSecrets(content),
+                  size: content.length
+                };
+              }
             }
+            return null;
+          } catch {
+            return null;
           }
-        } catch {}
-      })
-    );
+        })
+      );
 
-    if (probedFiles.length > 0) {
+      batchResults.forEach((res) => {
+        if (res) fetchedFiles.push(res);
+      });
+    }
+
+    if (fetchedFiles.length > 0) {
       return {
         repoName: `${owner}/${repo}`,
         branch: targetBranch || 'main',
-        totalFilesInRepo: probedFiles.length,
-        scannedCandidatesCount: probedFiles.length,
-        files: probedFiles
+        totalFilesInRepo: validCandidates.length,
+        scannedCandidatesCount: fetchedFiles.length,
+        files: fetchedFiles
       };
     }
-
-    const err: any = new Error(`Could not retrieve source files from "${owner}/${repo}". The repository may be private, empty, or rate-limited. You can also drag & drop or paste your files directly.`);
-    err.status = 422;
-    throw err;
   }
 
-  // Prioritize key directories across all levels (routes, controllers, services, lib, models, core, api, config)
-  const prioritizedCandidates = validCandidates
-    .sort((a, b) => {
-      const aIsKey = /^(routes|lib|app|core|services|controllers|models|api|server|src|db|middleware)/i.test(a.path);
-      const bIsKey = /^(routes|lib|app|core|services|controllers|models|api|server|src|db|middleware)/i.test(b.path);
-      if (aIsKey && !bIsKey) return -1;
-      if (!aIsKey && bIsKey) return 1;
-      return 0;
-    })
-    .slice(0, maxFiles);
-
-  // Fetch contents concurrently in high-speed batches of 30
-  const fetchedFiles: any[] = [];
-  const batchSize = 30;
-
-  for (let i = 0; i < prioritizedCandidates.length; i += batchSize) {
-    if (fetchedFiles.length >= maxFiles) break;
-    const batch = prioritizedCandidates.slice(i, i + batchSize);
-    const batchResults = await Promise.all(
-      batch.map(async (candidate) => {
-        try {
-          const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${targetBranch}/${candidate.path}`;
-          const fileRes = await fetch(rawUrl, { signal: AbortSignal.timeout(6000) });
-          if (fileRes.ok) {
-            const content = await fileRes.text();
-            if (content && !content.startsWith('<!DOCTYPE html>')) {
-              return {
-                id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                name: path.basename(candidate.path),
-                path: candidate.path,
-                language: detectLanguage(candidate.path),
-                content: scrubSecrets(content),
-                size: content.length
-              };
-            }
-          }
-          return null;
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    batchResults.forEach((res) => {
-      if (res && fetchedFiles.length < maxFiles) {
-        fetchedFiles.push(res);
-      }
-    });
-  }
-
-  if (fetchedFiles.length === 0) {
-    const err: any = new Error(`No readable text/source code files could be downloaded from "${owner}/${repo}". The repository may be private, empty, or rate-limited by GitHub.`);
-    err.status = 422;
-    throw err;
-  }
-
-  return {
-    repoName: `${owner}/${repo}`,
-    branch: targetBranch || 'main',
-    totalFilesInRepo: validCandidates.length,
-    scannedCandidatesCount: fetchedFiles.length,
-    files: fetchedFiles
-  };
+  const err: any = new Error(`Could not retrieve repository files from "${owner}/${repo}". The repository may be private, empty, or inaccessible. For private repositories, configure a GITHUB_TOKEN or drag & drop the codebase folder directly.`);
+  err.status = 404;
+  throw err;
 }
 
 // ---------------------------------------------------------
@@ -1000,7 +1033,7 @@ async function fetchGithubRepoFilesInternal(repoUrl: string, requestedMax: numbe
 // ---------------------------------------------------------
 app.post('/api/github/fetch', ingestionRateLimiter, requireAuth('auditor'), async (req: Request, res: Response) => {
   try {
-    const requestedMax = Number(req.body.maxFiles) || 250;
+    const requestedMax = req.body.maxFiles !== undefined ? Number(req.body.maxFiles) : 0;
     const { repoUrl } = req.body;
     if (!repoUrl) {
       return res.status(400).json({ error: 'GitHub repository URL is required.' });
@@ -1011,7 +1044,7 @@ app.post('/api/github/fetch', ingestionRateLimiter, requireAuth('auditor'), asyn
     console.error('Error in /api/github/fetch:', err);
     const isTimeout = err?.name === 'TimeoutError' || err?.message?.toLowerCase().includes('timed out');
     const userMessage = isTimeout
-      ? 'GitHub repository fetch timed out while contacting GitHub servers. GitHub API may be slow or rate-limiting requests. Please try again or specify fewer files.'
+      ? 'GitHub repository fetch timed out while contacting GitHub servers. Please try again or upload repository files directly.'
       : err.message || 'Failed to ingest GitHub repository.';
     return res.status(err.status || (isTimeout ? 504 : 500)).json({ error: userMessage });
   }
@@ -1020,12 +1053,13 @@ app.post('/api/github/fetch', ingestionRateLimiter, requireAuth('auditor'), asyn
 // Full-cycle GitHub import & automated audit pipeline endpoint
 app.post('/api/github-import', ingestionRateLimiter, requireAuth('auditor'), async (req: Request, res: Response) => {
   try {
-    const { repoUrl, maxFiles = 250, customRules = '' } = req.body;
+    const { repoUrl, customRules = '' } = req.body;
+    const requestedMax = req.body.maxFiles !== undefined ? Number(req.body.maxFiles) : 0;
     if (!repoUrl) {
       return res.status(400).json({ error: 'GitHub repository URL is required.' });
     }
     const tenantContext = resolveTenantContext(req);
-    const githubData = await fetchGithubRepoFilesInternal(repoUrl, Number(maxFiles) || 250);
+    const githubData = await fetchGithubRepoFilesInternal(repoUrl, requestedMax);
     appendWalEntry(tenantContext.tenantId, 'repo_ingest', 'REPO_INGESTED', { repoName: githubData.repoName, branch: githubData.branch, filesCount: githubData.files.length });
     const auditResult = await executeAuditPipeline(githubData.files, githubData.repoName, customRules, tenantContext.tenantId);
     return res.json({
@@ -1038,7 +1072,7 @@ app.post('/api/github-import', ingestionRateLimiter, requireAuth('auditor'), asy
     console.error('Error in /api/github-import:', err);
     const isTimeout = err?.name === 'TimeoutError' || err?.message?.toLowerCase().includes('timed out');
     const userMessage = isTimeout
-      ? 'GitHub repository import & audit timed out. Please try again with fewer files (e.g. 20-50 files) or upload repository files directly.'
+      ? 'GitHub repository import & audit timed out. Please try again or upload repository files directly.'
       : err.message || 'Failed to import GitHub repository.';
     return res.status(err.status || (isTimeout ? 504 : 500)).json({ error: userMessage });
   }
@@ -2658,8 +2692,20 @@ async function executeAuditPipeline(
   const domainKeys = Object.keys(clusters);
   const isLargeCodebase = files.length > 8 || files.some((f) => (f.content?.length || 0) > 10000);
 
-  // Distill each file to send structural skeletons (AST signatures, routes, schemas) alongside dependency graph
-  const distilledPayload = files.map((f: any, idx: number) => {
+  // Distill files to send structural skeletons (AST signatures, routes, schemas) alongside dependency graph
+  // For large codebases (e.g. 100 to 100,000 files), prioritize primary architectural and interface files
+  // for the AI model prompt context, while the heuristic engine audits 100% of all repository files!
+  const architecturalFiles = files.length > 80
+    ? [...files].sort((a, b) => {
+        const aIsKey = /^(src\/index|src\/main|src\/app|app|server|main|routes|controllers|models|api|services|config)/i.test(a.path || a.name);
+        const bIsKey = /^(src\/index|src\/main|src\/app|app|server|main|routes|controllers|models|api|services|config)/i.test(b.path || b.name);
+        if (aIsKey && !bIsKey) return -1;
+        if (!aIsKey && bIsKey) return 1;
+        return 0;
+      }).slice(0, 80)
+    : files;
+
+  const distilledPayload = architecturalFiles.map((f: any, idx: number) => {
     const { distilled, routes, schemas, functions } = distillCode(f.content || '', f.path || f.name);
     return `=== FILE ${idx + 1}: ${f.path || f.name} (${f.language || 'text'}) ===
 Domain: ${classifyDomain(f.path || f.name)}

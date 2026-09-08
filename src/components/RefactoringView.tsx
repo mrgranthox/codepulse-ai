@@ -708,13 +708,7 @@ export const RefactoringView: React.FC<RefactoringViewProps> = ({
               <h2 className="text-base font-bold text-white tracking-tight">
                 Code Refactoring & Security Patch Studio
               </h2>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                Live AST Diff Engine
-              </span>
             </div>
-            <p className="text-xs text-slate-400">
-              Interactive code editor, side-by-side AST diffs, and paginated catalog for 100+ automated refactorings
-            </p>
           </div>
         </div>
 
@@ -1569,21 +1563,6 @@ export const RefactoringView: React.FC<RefactoringViewProps> = ({
                       <span>Remediation & Exploit Guide</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsBottomDrawerOpen(true);
-                        setActiveBottomTab('distillation');
-                      }}
-                      className={`px-2.5 py-1 rounded text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
-                        isBottomDrawerOpen && activeBottomTab === 'distillation'
-                          ? 'bg-slate-800 text-white font-semibold'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      <Layers className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>AST Distillation Specs</span>
-                    </button>
                   </div>
 
                   <button
@@ -1893,10 +1872,6 @@ export const RefactoringView: React.FC<RefactoringViewProps> = ({
                       </span>
                     </>
                   )}
-                  <span className="text-emerald-400 flex items-center gap-1">
-                    <Shield className="w-3 h-3" />
-                    <span>Zero-Trust AST Ready</span>
-                  </span>
                 </div>
               </div>
             </div>

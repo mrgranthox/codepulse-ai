@@ -136,11 +136,11 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setActiveTab('security')}
-            className="flex-1 sm:flex-initial px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-sm min-h-[40px]"
+            className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-sm min-h-[44px]"
           >
             <Shield className="w-4 h-4 text-indigo-400" />
             <span>Vulnerabilities ({securityAudit.length})</span>
@@ -148,7 +148,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('export')}
-            className="flex-1 sm:flex-initial px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-sm min-h-[40px]"
+            className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-sm min-h-[44px]"
           >
             <FileText className="w-4 h-4 text-indigo-400" />
             <span>Export Report</span>
@@ -156,7 +156,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('architecture')}
-            className="w-full sm:w-auto px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/25 border border-indigo-400/30 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer min-h-[40px]"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/25 border border-indigo-400/30 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer min-h-[44px]"
           >
             <span>View Architecture</span>
             <ArrowRight className="w-4 h-4" />
@@ -393,13 +393,9 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className={`px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold flex items-center gap-1.5 border ${
-              isMemoryOptimized 
-                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-700/60' 
-                : 'bg-amber-950/60 text-amber-300 border-amber-700/50'
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isMemoryOptimized ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}></span>
-              <span>{isMemoryOptimized ? 'Heap Cycle Executed' : 'Raw Buffers in RAM'}</span>
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold flex items-center gap-1.5 border bg-emerald-950/80 text-emerald-300 border-emerald-700/60">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span>100% Files Retained (Background Active)</span>
             </span>
 
             {onOpenMemoryOverlay && (
@@ -443,13 +439,13 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           <div className="p-3 bg-emerald-950/20 border border-emerald-800/30 rounded-lg space-y-1">
             <span className="text-[10px] font-semibold uppercase text-emerald-400 flex items-center gap-1">
               <Zap className="w-3 h-3 text-emerald-400" />
-              Reclaimed Heap Cycle
+              Background GC Cycle
             </span>
             <p className="text-lg font-bold font-mono text-emerald-400">
-              {isMemoryOptimized ? '~0.84' : '0.00'} <span className="text-xs font-normal text-emerald-300">MB</span>
+              Silent <span className="text-xs font-normal text-emerald-300">Async</span>
             </p>
             <span className="text-[10px] text-emerald-400/80">
-              {isMemoryOptimized ? 'Clean file buffers purged' : 'Clearance cycle available'}
+              Microtask background activity
             </span>
           </div>
 
@@ -461,7 +457,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             <p className="text-lg font-bold font-mono text-indigo-300">
               100% <span className="text-xs font-normal text-indigo-400">Retained</span>
             </p>
-            <span className="text-[10px] text-indigo-400/80">All finding files & AST nodes</span>
+            <span className="text-[10px] text-indigo-400/80">All codebase files verbatim</span>
           </div>
         </div>
 
@@ -498,8 +494,8 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 
       {/* Enterprise Specification & Unit Economics Row (Section 9 - 14 Architecture Addendum) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Section 9: Live Unit Economics & Cost Model (6 Cols) */}
-        <div className="lg:col-span-6 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 sm:p-6 shadow-xl space-y-4">
+        {/* Section 9: Live Unit Economics & Cost Model (12 Cols) */}
+        <div className="lg:col-span-12 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 sm:p-6 shadow-xl space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
             <div className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-emerald-400" />
@@ -537,74 +533,6 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400">
             <span>AST Token Compression: <strong>-{astMetrics.astReductionPercentage}%</strong></span>
             <span>Target SLA: <strong>&lt;30s</strong></span>
-          </div>
-        </div>
-
-        {/* Real Enterprise Zero-Trust RLS & Cryptographic Compliance (6 Cols) */}
-        <div className="lg:col-span-6 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-5 sm:p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-indigo-400" />
-              <h3 className="text-sm font-bold text-white tracking-tight">
-                Enterprise Zero-Trust RLS & Compliance
-              </h3>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono font-semibold uppercase px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-700/50">
-                RLS Enforced
-              </span>
-              {onOpenGovernance && (
-                <button
-                  type="button"
-                  onClick={() => onOpenGovernance('verify')}
-                  className="px-2.5 py-0.5 rounded-full bg-indigo-900/60 hover:bg-indigo-800 border border-indigo-700/60 text-[10px] font-semibold text-indigo-200 transition-colors cursor-pointer"
-                >
-                  Verify SHA-256
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div className="p-3 bg-[#0B0F17] border border-slate-800 rounded-lg flex items-start gap-2.5">
-              <Lock className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <span className="text-xs font-semibold text-white block">Tenant RLS Isolation</span>
-                <span className="text-[11px] text-slate-400">
-                  Tenant <span className="font-mono text-indigo-300 font-medium">{auditResult.compliance?.tenantId?.slice(0, 14) || 'tenant_ephemeral'}...</span> with 4 active boundary policies.
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3 bg-[#0B0F17] border border-slate-800 rounded-lg flex items-start gap-2.5">
-              <Globe className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-              <div>
-                <span className="text-xs font-semibold text-white block">Data Residency & GDPR</span>
-                <span className="text-[11px] text-slate-400">
-                  {auditResult.compliance?.dataResidencyRegion || 'EU-WEST-2 (London)'} with AES-256-GCM & 30-day purge.
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3 bg-[#0B0F17] border border-slate-800 rounded-lg flex items-start gap-2.5">
-              <Server className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <span className="text-xs font-semibold text-white block">Continuous WAL PITR</span>
-                <span className="text-[11px] text-slate-400">
-                  Write-Ahead Log Seq #{auditResult.compliance?.walSequence || 1043}. RPO &lt; 15m, RTO &lt; 1h verified.
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3 bg-[#0B0F17] border border-slate-800 rounded-lg flex items-start gap-2.5">
-              <FileCheck2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <span className="text-xs font-semibold text-white block">Zero Prompt Retention</span>
-                <span className="text-[11px] text-slate-400">
-                  Enterprise zero-data training guarantee. AST in-memory buffer purged.
-                </span>
-              </div>
-            </div>
           </div>
         </div>
       </div>

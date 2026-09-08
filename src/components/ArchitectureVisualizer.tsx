@@ -119,12 +119,12 @@ export const ArchitectureVisualizer: React.FC<ArchitectureVisualizerProps> = ({ 
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap w-full sm:w-auto">
           <button
             type="button"
             onClick={() => handleExplainDiagram()}
             disabled={isExplaining}
-            className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/25 border border-indigo-400/30 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 cursor-pointer"
+            className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 border border-indigo-400/30 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 cursor-pointer min-h-[44px]"
           >
             {isExplaining ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -134,7 +134,7 @@ export const ArchitectureVisualizer: React.FC<ArchitectureVisualizerProps> = ({ 
             <span>{isExplaining ? 'Analyzing Graph Flow...' : 'Explain this diagram'}</span>
           </button>
 
-          <span className="text-xs font-mono font-bold px-3 py-2 rounded-lg bg-indigo-950/80 border border-indigo-700/50 text-indigo-300">
+          <span className="text-xs font-mono font-bold px-3 py-2.5 rounded-lg bg-indigo-950/80 border border-indigo-700/50 text-indigo-300 min-h-[44px] flex items-center justify-center">
             {architecture.diagramType || 'graph TD'}
           </span>
         </div>
@@ -235,7 +235,7 @@ export const ArchitectureVisualizer: React.FC<ArchitectureVisualizerProps> = ({ 
                 handleExplainDiagram(customQuestion);
               }
             }}
-            className="flex items-center gap-2 pt-1"
+            className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1"
           >
             <div className="relative flex-1">
               <input
@@ -243,14 +243,14 @@ export const ArchitectureVisualizer: React.FC<ArchitectureVisualizerProps> = ({ 
                 value={customQuestion}
                 onChange={(e) => setCustomQuestion(e.target.value)}
                 placeholder="Ask specific question about this architecture (e.g., 'What happens if DB goes down?')..."
-                className="w-full px-4 py-2.5 pl-10 bg-[#0B0F17] border border-slate-800 focus:border-indigo-500 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
+                className="w-full px-4 py-2.5 pl-10 bg-[#0B0F17] border border-slate-800 focus:border-indigo-500 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none transition-colors min-h-[44px]"
               />
-              <MessageSquare className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+              <MessageSquare className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
             </div>
             <button
               type="submit"
               disabled={!customQuestion.trim() || isExplaining}
-              className="px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 transition-colors disabled:text-slate-500 cursor-pointer border border-indigo-400/30"
+              className="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors disabled:text-slate-500 cursor-pointer border border-indigo-400/30 min-h-[44px]"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Ask AI</span>

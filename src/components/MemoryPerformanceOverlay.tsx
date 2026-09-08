@@ -313,7 +313,7 @@ export const MemoryPerformanceOverlay: React.FC<MemoryPerformanceOverlayProps> =
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center"
           >
             <X className="w-4 h-4" />
           </button>
@@ -439,13 +439,13 @@ export const MemoryPerformanceOverlay: React.FC<MemoryPerformanceOverlayProps> =
         </div>
 
         {/* Modal Actions */}
-        <div className="p-4 sm:p-5 border-t border-slate-800 bg-[#0B0F17] flex items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 border-t border-slate-800 bg-[#0B0F17] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <span className={`w-2 h-2 rounded-full ${isOptimized ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
             <span>Status: <strong className={isOptimized ? 'text-emerald-300' : 'text-amber-300'}>{isOptimized ? 'Optimized' : 'Raw Buffer Active'}</strong></span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
             {!isOptimized && onTriggerOptimization && (
               <button
                 type="button"
@@ -453,7 +453,7 @@ export const MemoryPerformanceOverlay: React.FC<MemoryPerformanceOverlayProps> =
                   onTriggerOptimization();
                   onClose();
                 }}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center gap-1.5"
+                className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center justify-center gap-1.5 min-h-[44px]"
               >
                 <Zap className="w-3.5 h-3.5" />
                 <span>Execute Deep Clean (~{freedHeapNum.toFixed(2)} MB)</span>
@@ -462,7 +462,7 @@ export const MemoryPerformanceOverlay: React.FC<MemoryPerformanceOverlayProps> =
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold transition-all cursor-pointer"
+              className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold transition-all cursor-pointer min-h-[44px] flex items-center justify-center"
             >
               Close
             </button>

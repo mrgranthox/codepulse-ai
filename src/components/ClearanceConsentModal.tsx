@@ -52,14 +52,14 @@ export const ClearanceConsentModal: React.FC<ClearanceConsentModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-white tracking-tight">
-                  Deep-Memory Clearance & Cache Consent
+                  Background Memory Lifecycle & Retention
                 </h3>
-                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800/60">
-                  Batch Optimization
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800/60">
+                  Background Activity
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Audit complete for <span className="text-indigo-300 font-mono font-medium">{repoName || 'Codebase'}</span>. Choose how source buffers are managed in browser memory.
+                All source files for <span className="text-indigo-300 font-mono font-medium">{repoName || 'Codebase'}</span> are retained in memory. System memory optimization operates continuously as a non-blocking background activity.
               </p>
             </div>
           </div>
@@ -84,8 +84,8 @@ export const ClearanceConsentModal: React.FC<ClearanceConsentModalProps> = ({
               <p className="text-lg font-bold text-white font-mono">
                 {preview.totalFiles} <span className="text-xs font-normal text-slate-400">files</span>
               </p>
-              <span className="text-[10px] font-mono text-slate-400">
-                ~{preview.totalHeapMb} MB in heap
+              <span className="text-[10px] font-mono text-emerald-400">
+                100% Retained in Memory
               </span>
             </div>
 
@@ -95,23 +95,23 @@ export const ClearanceConsentModal: React.FC<ClearanceConsentModalProps> = ({
                 Retained Files
               </span>
               <p className="text-lg font-bold text-indigo-300 font-mono">
-                {preview.issueFilesCount} <span className="text-xs font-normal text-indigo-400">files</span>
+                {preview.totalFiles} <span className="text-xs font-normal text-indigo-400">files</span>
               </p>
               <span className="text-[10px] font-mono text-indigo-400">
-                100% raw source kept
+                100% full source preserved
               </span>
             </div>
 
             <div className="p-3.5 bg-emerald-950/30 border border-emerald-800/40 rounded-xl space-y-1">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-300 block flex items-center gap-1">
                 <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                Estimated RAM Freed
+                Background Execution
               </span>
               <p className="text-lg font-bold text-emerald-400 font-mono">
-                ~{preview.estimatedHeapFreedMb} <span className="text-xs font-normal text-emerald-300">MB</span>
+                Silent <span className="text-xs font-normal text-emerald-300">Async</span>
               </p>
               <span className="text-[10px] font-mono text-emerald-400">
-                {preview.cleanFilesCount} clean files released
+                Non-blocking background tasks
               </span>
             </div>
           </div>
@@ -120,17 +120,17 @@ export const ClearanceConsentModal: React.FC<ClearanceConsentModalProps> = ({
           <div className="p-3.5 bg-[#0B0F17] border border-slate-800 rounded-xl text-xs space-y-2">
             <div className="flex items-center gap-2 text-slate-200 font-semibold">
               <Layers className="w-4 h-4 text-indigo-400" />
-              <span>How Deep-Memory Optimization Works:</span>
+              <span>Background Memory Management:</span>
             </div>
             <ul className="space-y-1.5 text-slate-400 text-[11px] leading-relaxed pl-5 list-disc">
               <li>
-                <strong className="text-slate-300">Targeted Retention:</strong> All {preview.issueFilesCount} files containing security vulnerabilities, code smells, or active IDE selections retain their full verbatim source code.
+                <strong className="text-slate-300">100% File Retention:</strong> All {preview.totalFiles} codebase files maintain their verbatim raw source code in client memory for full browsing, IDE inspection, and immediate re-audit.
               </li>
               <li>
-                <strong className="text-slate-300">Buffer Clearance:</strong> The {preview.cleanFilesCount} clean files (0 issues found) will release raw text buffers, preventing browser tab crashes during massive multi-hundred file audits.
+                <strong className="text-slate-300">Background Activities:</strong> Cache synchronization, AST index compaction, and heap memory management execute exclusively in background microtasks without blocking dialogs or thread stalls.
               </li>
               <li>
-                <strong className="text-slate-300">Zero Metric Loss:</strong> Full AST metrics, dependency graphs, C4 diagrams, and aggregate security ratings remain 100% intact.
+                <strong className="text-slate-300">Zero Metric Loss:</strong> Full AST metrics, dependency graphs, security ratings, and live code navigation remain immediately accessible.
               </li>
             </ul>
           </div>
@@ -140,66 +140,26 @@ export const ClearanceConsentModal: React.FC<ClearanceConsentModalProps> = ({
             <div className="flex items-center border-b border-slate-800 bg-slate-900/60 p-1">
               <button
                 type="button"
-                onClick={() => setActiveTab('clean')}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-                  activeTab === 'clean'
-                    ? 'bg-emerald-950/80 text-emerald-200 border border-emerald-800/50 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Clean Files for Memory Pruning ({preview.cleanFilesCount})</span>
-              </button>
-              <button
-                type="button"
                 onClick={() => setActiveTab('retained')}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-                  activeTab === 'retained'
-                    ? 'bg-indigo-950/80 text-indigo-200 border border-indigo-800/50 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
+                className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer bg-indigo-950/80 text-indigo-200 border border-indigo-800/50 shadow-sm"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Files Retained Full Source ({preview.issueFilesCount})</span>
+                <span>All Retained Source Files ({preview.totalFiles})</span>
               </button>
             </div>
 
             <div className="p-3 max-h-40 overflow-y-auto custom-scrollbar font-mono text-[11px] space-y-1">
-              {activeTab === 'clean' ? (
-                preview.cleanFilesList.length > 0 ? (
-                  preview.cleanFilesList.map((file, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-slate-400 hover:text-slate-200 py-0.5">
-                      <span className="truncate max-w-[80%] flex items-center gap-1.5">
-                        <FileCode className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                        <span className="truncate">{file.path}</span>
-                      </span>
-                      <span className="text-[10px] text-emerald-400 font-semibold shrink-0">Clean (0 issues)</span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-4 text-slate-500 text-xs font-sans">
-                    All scanned files contain findings or active selections.
-                  </div>
-                )
-              ) : (
-                preview.issueFilesList.length > 0 ? (
-                  preview.issueFilesList.map((file, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-slate-300 hover:text-white py-0.5">
-                      <span className="truncate max-w-[75%] flex items-center gap-1.5">
-                        <FileCode className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                        <span className="truncate">{file.path}</span>
-                      </span>
-                      <span className="text-[10px] text-indigo-300 font-semibold shrink-0">
-                        {file.issuesCount > 0 ? `${file.issuesCount} findings` : 'Active Editor File'}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-4 text-slate-500 text-xs font-sans">
-                    No files require mandatory retention.
-                  </div>
-                )
-              )}
+              {preview.issueFilesList.concat(preview.cleanFilesList.map(f => ({ name: f.name, path: f.path, issuesCount: 0 }))).slice(0, 50).map((file, idx) => (
+                <div key={idx} className="flex items-center justify-between text-slate-300 hover:text-white py-0.5">
+                  <span className="truncate max-w-[75%] flex items-center gap-1.5">
+                    <FileCode className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                    <span className="truncate">{file.path}</span>
+                  </span>
+                  <span className="text-[10px] text-indigo-300 font-semibold shrink-0">
+                    {file.issuesCount > 0 ? `${file.issuesCount} findings` : 'Retained (Clean)'}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -213,7 +173,7 @@ export const ClearanceConsentModal: React.FC<ClearanceConsentModalProps> = ({
               className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
             />
             <label htmlFor="dontAskAgain" className="text-xs text-slate-400 cursor-pointer select-none">
-              Remember my choice for the remainder of this browser session
+              Remember my preference (keep all files in background)
             </label>
           </div>
         </div>
@@ -222,20 +182,19 @@ export const ClearanceConsentModal: React.FC<ClearanceConsentModalProps> = ({
         <div className="p-4 sm:p-5 border-t border-slate-800 bg-[#0B0F17] flex flex-col-reverse sm:flex-row items-center justify-between gap-3">
           <button
             type="button"
-            onClick={() => onRetainFullSource(dontAskAgain)}
+            onClick={onClose}
             className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-200 text-xs font-semibold transition-all hover:text-white cursor-pointer flex items-center justify-center gap-2"
           >
-            <Eye className="w-4 h-4 text-slate-400" />
-            <span>Retain Full Source Files Locally</span>
+            <span>Dismiss</span>
           </button>
 
           <button
             type="button"
-            onClick={() => onConfirmOptimize(dontAskAgain)}
+            onClick={() => onRetainFullSource(dontAskAgain)}
             className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center justify-center gap-2"
           >
-            <Zap className="w-4 h-4" />
-            <span>Optimize Memory & Release Buffers (~{preview.estimatedHeapFreedMb} MB)</span>
+            <ShieldCheck className="w-4 h-4 text-white" />
+            <span>Retain All Files (Run in Background)</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

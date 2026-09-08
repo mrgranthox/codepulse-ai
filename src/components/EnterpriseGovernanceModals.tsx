@@ -115,13 +115,13 @@ export const EnterpriseGovernanceModals: React.FC<EnterpriseGovernanceModalsProp
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-slate-800 bg-slate-950/40 px-5 gap-2 overflow-x-auto">
+        <div className="flex border-b border-slate-800 bg-slate-950/40 px-3 sm:px-5 gap-1 sm:gap-2 overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setActiveTab('about')}
-            className={`py-3 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+            className={`py-3 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap min-h-[44px] flex items-center ${
               activeTab === 'about'
-                ? 'border-indigo-500 text-indigo-400'
+                ? 'border-indigo-500 text-indigo-400 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -130,31 +130,31 @@ export const EnterpriseGovernanceModals: React.FC<EnterpriseGovernanceModalsProp
           <button
             type="button"
             onClick={() => setActiveTab('privacy')}
-            className={`py-3 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+            className={`py-3 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap min-h-[44px] flex items-center ${
               activeTab === 'privacy'
-                ? 'border-indigo-500 text-indigo-400'
+                ? 'border-indigo-500 text-indigo-400 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            Privacy Policy & Zero Retention
+            Privacy Policy
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('terms')}
-            className={`py-3 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+            className={`py-3 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap min-h-[44px] flex items-center ${
               activeTab === 'terms'
-                ? 'border-indigo-500 text-indigo-400'
+                ? 'border-indigo-500 text-indigo-400 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            Terms of Service & SLA
+            Terms of Service
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('verify')}
-            className={`py-3 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+            className={`py-3 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap min-h-[44px] flex items-center gap-1.5 ${
               activeTab === 'verify'
-                ? 'border-emerald-500 text-emerald-400'
+                ? 'border-emerald-500 text-emerald-400 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -424,15 +424,15 @@ export const EnterpriseGovernanceModals: React.FC<EnterpriseGovernanceModalsProp
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between text-xs text-slate-400">
+        <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-400">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span>Zero-Trust RLS Active • GDPR/SOC2 Ready • EU-WEST-2</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+            <span className="text-[11px] sm:text-xs">Zero-Trust RLS Active • GDPR/SOC2 Ready</span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-colors cursor-pointer"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-colors cursor-pointer min-h-[44px] flex items-center justify-center"
           >
             Close
           </button>

@@ -38,7 +38,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const { mode, effectiveTheme, setMode } = useTheme();
   const [activeTab, setActiveTab] = useState<'theme' | 'memory' | 'security' | 'engine'>('theme');
   const [memoryPolicy, setMemoryPolicy] = useState<string>(() => {
-    return localStorage.getItem('codepulse_memory_pref_v1') || 'ask';
+    return localStorage.getItem('codepulse_memory_pref_v1') || 'retain';
   });
   const [maxGithubFiles, setMaxGithubFiles] = useState<number>(() => {
     return Number(localStorage.getItem('codepulse_max_files') || '250');
@@ -100,18 +100,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-800 light:hover:bg-slate-200 transition-colors cursor-pointer"
+            className="p-2 rounded-lg text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-800 light:hover:bg-slate-200 transition-colors cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center border-b border-slate-800 dark:border-slate-800 light:border-slate-200 bg-[#0A0E17] dark:bg-[#0A0E17] light:bg-slate-100 px-4 pt-2 gap-2 overflow-x-auto custom-scrollbar">
+        <div className="flex items-center border-b border-slate-800 dark:border-slate-800 light:border-slate-200 bg-[#0A0E17] dark:bg-[#0A0E17] light:bg-slate-100 px-3 sm:px-4 pt-2 gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setActiveTab('theme')}
-            className={`px-3.5 py-2 text-xs font-semibold rounded-t-lg border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`px-3 sm:px-3.5 py-2.5 text-xs font-semibold rounded-t-lg border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap min-h-[42px] ${
               activeTab === 'theme'
                 ? 'border-indigo-500 text-indigo-400 bg-slate-900/60 dark:bg-slate-900/60 light:bg-white light:text-indigo-600'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -123,7 +123,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('memory')}
-            className={`px-3.5 py-2 text-xs font-semibold rounded-t-lg border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`px-3 sm:px-3.5 py-2.5 text-xs font-semibold rounded-t-lg border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap min-h-[42px] ${
               activeTab === 'memory'
                 ? 'border-indigo-500 text-indigo-400 bg-slate-900/60 dark:bg-slate-900/60 light:bg-white light:text-indigo-600'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -135,7 +135,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('security')}
-            className={`px-3.5 py-2 text-xs font-semibold rounded-t-lg border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`px-3 sm:px-3.5 py-2.5 text-xs font-semibold rounded-t-lg border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap min-h-[42px] ${
               activeTab === 'security'
                 ? 'border-indigo-500 text-indigo-400 bg-slate-900/60 dark:bg-slate-900/60 light:bg-white light:text-indigo-600'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -147,7 +147,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('engine')}
-            className={`px-3.5 py-2 text-xs font-semibold rounded-t-lg border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`px-3 sm:px-3.5 py-2.5 text-xs font-semibold rounded-t-lg border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap min-h-[42px] ${
               activeTab === 'engine'
                 ? 'border-indigo-500 text-indigo-400 bg-slate-900/60 dark:bg-slate-900/60 light:bg-white light:text-indigo-600'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -244,19 +244,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="space-y-2">
                   {[
                     {
-                      id: 'ask',
-                      title: 'Always Ask via ClearanceConsent Modal (Recommended)',
-                      desc: 'Shows interactive dialog summarizing estimated heap savings and clean files before executing buffer prunes.'
-                    },
-                    {
-                      id: 'optimize',
-                      title: 'Auto-Optimize Clean Buffers',
-                      desc: 'Automatically releases clean file string buffers upon audit completion to maximize browser responsiveness.'
-                    },
-                    {
                       id: 'retain',
-                      title: 'Always Retain 100% Full Source in State',
-                      desc: 'Never prunes raw source code strings. Best for smaller repos or offline full-file auditing.'
+                      title: 'Always Retain 100% Full Source in Memory (Recommended)',
+                      desc: 'Keeps 100% of codebase files intact in browser memory while running garbage collection and telemetry as background activities.'
+                    },
+                    {
+                      id: 'background',
+                      title: 'Background Microtask Memory Optimization',
+                      desc: 'Runs automated non-blocking microtask cache cleanup while preserving all verbatim source files in memory.'
                     }
                   ].map((opt) => (
                     <label
@@ -288,19 +283,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
                   GitHub Enterprise Ingestion Limit
                 </label>
-                <div className="flex items-center gap-2">
-                  {[100, 250, 500, 1000].map((num) => (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { val: 0, label: 'All Files (100%)' },
+                    { val: 5000, label: '5,000 files' },
+                    { val: 1000, label: '1,000 files' },
+                    { val: 250, label: '250 files' }
+                  ].map((item) => (
                     <button
-                      key={num}
+                      key={item.val}
                       type="button"
-                      onClick={() => handleSaveGithubMaxFiles(num)}
-                      className={`flex-1 py-2 rounded-lg text-xs font-mono font-semibold border transition-all cursor-pointer ${
-                        maxGithubFiles === num
-                          ? 'border-indigo-500 bg-indigo-950 text-indigo-200'
+                      onClick={() => handleSaveGithubMaxFiles(item.val)}
+                      className={`py-2 rounded-lg text-xs font-mono font-semibold border transition-all cursor-pointer ${
+                        maxGithubFiles === item.val
+                          ? 'border-emerald-500 bg-emerald-950 text-emerald-200 font-bold'
                           : 'border-slate-800 bg-slate-900 text-slate-400 hover:text-white hover:border-slate-700'
                       }`}
                     >
-                      {num} files
+                      {item.label}
                     </button>
                   ))}
                 </div>
@@ -440,7 +440,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition-all cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition-all cursor-pointer min-h-[44px]"
           >
             Done
           </button>

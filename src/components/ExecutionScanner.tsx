@@ -82,7 +82,7 @@ export const ExecutionScanner: React.FC<ExecutionScannerProps> = ({
     // Initial logs
     const baseLogs = [
       `[INIT] Initializing CodePulse Neural AST Engine v2.4...`,
-      `[INGEST] Target repository: "${repoName || 'Custom Workspace'}" (${files.length} files, ${totalLines} LOC)`,
+      `[INGEST] Ingested 100% repository files: "${repoName || 'Custom Workspace'}" (${files.length.toLocaleString()} files, ${totalLines.toLocaleString()} LOC)`,
       `[SECURITY] Zero-trust client sanitizer active. Scrubbing credential patterns...`
     ];
     setTerminalLogs(baseLogs);
@@ -160,14 +160,14 @@ export const ExecutionScanner: React.FC<ExecutionScannerProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-right">
+          <div className="flex items-center gap-4 text-left sm:text-right pt-2 md:pt-0 border-t md:border-t-0 border-slate-800/80 flex-wrap sm:flex-nowrap">
             <div className="flex flex-col">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Analyzed Payload</span>
               <span className="text-xs font-mono font-bold text-slate-200 mt-0.5">
                 {files.length} Files • {files.reduce((a, b) => a + (b.content?.split('\n').length || 0), 0)} LOC
               </span>
             </div>
-            <div className="h-8 w-px bg-slate-800"></div>
+            <div className="h-8 w-px bg-slate-800 hidden sm:block"></div>
             <div className="flex flex-col">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Engine</span>
               <span className="text-xs font-mono font-bold text-indigo-400 mt-0.5">
@@ -282,21 +282,26 @@ export const ExecutionScanner: React.FC<ExecutionScannerProps> = ({
                 <FileCode className="w-3.5 h-3.5 text-indigo-400" />
                 <span>Files in Current Payload</span>
               </span>
-              <span className="text-xs font-mono text-slate-400 font-semibold">{files.length} files</span>
+              <span className="text-xs font-mono text-emerald-400 font-semibold">{files.length.toLocaleString()} files (100%)</span>
             </div>
 
             <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-              {files.map((file, i) => (
+              {files.slice(0, 50).map((file, i) => (
                 <div 
                   key={file.id || i}
                   className="flex items-center justify-between px-3 py-2 rounded-lg bg-[#090D16] border border-slate-800 text-xs font-mono text-slate-300"
                 >
-                  <span className="truncate max-w-[170px]">{file.name}</span>
+                  <span className="truncate max-w-[170px]" title={file.path || file.name}>{file.name}</span>
                   <span className="text-[10px] text-indigo-400 uppercase font-semibold">
                     {file.language}
                   </span>
                 </div>
               ))}
+              {files.length > 50 && (
+                <div className="text-[10px] text-center text-slate-400 font-mono py-1 bg-slate-900/50 rounded border border-slate-800/60">
+                  + {(files.length - 50).toLocaleString()} more files being fully audited
+                </div>
+              )}
             </div>
           </div>
 

@@ -57,10 +57,10 @@ export const AuditHistoryDrawer: React.FC<AuditHistoryDrawerProps> = ({
         onClick={onClose}
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-slate-900/95 backdrop-blur-xl border-l border-slate-800 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
+        <div className="w-full sm:w-screen max-w-md bg-slate-900/95 backdrop-blur-xl border-l border-slate-800 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
           {/* Header */}
-          <div className="p-5 border-b border-slate-800/80 flex items-center justify-between bg-[#090D16]">
+          <div className="p-4 sm:p-5 border-b border-slate-800/80 flex items-center justify-between bg-[#090D16]">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-indigo-600/10 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
                 <History className="w-4 h-4" />
@@ -80,7 +80,7 @@ export const AuditHistoryDrawer: React.FC<AuditHistoryDrawerProps> = ({
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer border border-slate-700"
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer border border-slate-700 min-w-[40px] min-h-[40px] flex items-center justify-center"
               title="Close history"
             >
               <X className="w-4 h-4" />
@@ -171,7 +171,7 @@ export const AuditHistoryDrawer: React.FC<AuditHistoryDrawerProps> = ({
                           onLoadSession(item);
                           onClose();
                         }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer ${
+                        className={`px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer min-h-[40px] ${
                           isSelected
                             ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/30'
                             : 'bg-slate-850 hover:bg-indigo-600 text-slate-300 hover:text-white border border-slate-750'
@@ -184,7 +184,7 @@ export const AuditHistoryDrawer: React.FC<AuditHistoryDrawerProps> = ({
                       <button
                         type="button"
                         onClick={() => onDeleteSession(item.id)}
-                        className="p-1.5 text-slate-500 hover:text-rose-400 transition-colors rounded-lg hover:bg-slate-800 cursor-pointer"
+                        className="p-2 text-slate-500 hover:text-rose-400 transition-colors rounded-lg hover:bg-slate-800 cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center"
                         title="Delete this cached audit"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -202,7 +202,7 @@ export const AuditHistoryDrawer: React.FC<AuditHistoryDrawerProps> = ({
               <button
                 type="button"
                 onClick={onClearAllHistory}
-                className="text-xs text-rose-400 hover:text-rose-300 font-semibold flex items-center gap-1 cursor-pointer"
+                className="text-xs text-rose-400 hover:text-rose-300 font-semibold flex items-center gap-1.5 cursor-pointer min-h-[44px] py-2 px-1"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Clear All Saved Audits</span>

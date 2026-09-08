@@ -313,13 +313,13 @@ ${smell.benefits.map((b) => `- ${b}`).join('\n')}
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           {/* Structured ZIP Export (Primary Action) */}
           <button
             type="button"
             onClick={handleDownloadStructuredZip}
             disabled={isZipping}
-            className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-emerald-950/40 active:scale-95 disabled:opacity-60 cursor-pointer"
+            className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-emerald-950/40 active:scale-95 disabled:opacity-60 cursor-pointer min-h-[44px]"
           >
             {isZipping ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -334,7 +334,7 @@ ${smell.benefits.map((b) => `- ${b}`).join('\n')}
           <button
             type="button"
             onClick={handleDownloadJson}
-            className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-sm"
+            className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-sm min-h-[44px]"
           >
             <Download className="w-4 h-4 text-indigo-400" />
             <span>JSON Artifact</span>
@@ -343,7 +343,7 @@ ${smell.benefits.map((b) => `- ${b}`).join('\n')}
           <button
             type="button"
             onClick={handleDownloadMarkdown}
-            className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-sm"
+            className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-sm min-h-[44px]"
           >
             <FileText className="w-4 h-4 text-indigo-400" />
             <span>Markdown (.md)</span>
@@ -352,7 +352,7 @@ ${smell.benefits.map((b) => `- ${b}`).join('\n')}
           <button
             type="button"
             onClick={handleCopyMarkdown}
-            className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-sm"
+            className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-sm min-h-[44px]"
           >
             {copiedMd ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-300" />}
             <span>{copiedMd ? 'Copied MD' : 'Copy MD'}</span>
@@ -361,7 +361,7 @@ ${smell.benefits.map((b) => `- ${b}`).join('\n')}
           <button
             type="button"
             onClick={handlePrint}
-            className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-indigo-600/25 border border-indigo-400/30 active:scale-95 cursor-pointer"
+            className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-indigo-600/25 border border-indigo-400/30 active:scale-95 cursor-pointer min-h-[44px]"
           >
             <Printer className="w-4 h-4" />
             <span>Print / PDF</span>

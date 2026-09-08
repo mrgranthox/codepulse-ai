@@ -65,10 +65,11 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
   const [ingestMode, setIngestMode] = useState<'github' | 'upload' | 'paste'>('github');
   const [isDragging, setIsDragging] = useState(false);
   const [githubUrl, setGithubUrl] = useState('');
-  const [scanDepth, setScanDepth] = useState<number>(250);
+  const [scanDepth, setScanDepth] = useState<number>(0); // 0 means 100% of all files (no limit)
   const [customMaxFiles, setCustomMaxFiles] = useState<string>('');
   const [isFetchingGithub, setIsFetchingGithub] = useState(false);
   const [showAdvancedRules, setShowAdvancedRules] = useState(false);
+  const [stagedSearch, setStagedSearch] = useState<string>('');
 
   const processFiles = (uploadedFiles: FileList | null) => {
     if (!uploadedFiles || uploadedFiles.length === 0) return;
@@ -261,7 +262,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                   type="button"
                   id="preset-express"
                   onClick={() => setGithubUrl('https://github.com/expressjs/express')}
-                  className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer min-h-[36px] flex items-center justify-center"
                 >
                   Express.js
                 </button>
@@ -269,7 +270,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                   type="button"
                   id="preset-fastify"
                   onClick={() => setGithubUrl('https://github.com/fastify/fastify')}
-                  className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer min-h-[36px] flex items-center justify-center"
                 >
                   Fastify
                 </button>
@@ -277,7 +278,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                   type="button"
                   id="preset-react"
                   onClick={() => setGithubUrl('https://github.com/facebook/react')}
-                  className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer min-h-[36px] flex items-center justify-center"
                 >
                   React
                 </button>
@@ -285,7 +286,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                   type="button"
                   id="preset-juice-shop"
                   onClick={() => setGithubUrl('https://github.com/juice-shop/juice-shop')}
-                  className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer min-h-[36px] flex items-center justify-center"
                 >
                   OWASP Juice Shop
                 </button>
@@ -302,79 +303,97 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                   <Sliders className="w-3.5 h-3.5 text-indigo-400" />
                   Enterprise Ingestion Scan Depth
                 </span>
-                <span className="text-[11px] font-mono text-indigo-400 font-semibold">
-                  {customMaxFiles ? `${customMaxFiles} max files` : `${scanDepth} files target`}
+                <span className="text-[11px] font-mono text-emerald-400 font-bold">
+                  {customMaxFiles ? `${Number(customMaxFiles).toLocaleString()} max files` : scanDepth === 0 ? '100% Full Repo (No Ceiling)' : `${scanDepth.toLocaleString()} files target`}
                 </span>
               </div>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 <button
                   type="button"
-                  onClick={() => { setScanDepth(100); setCustomMaxFiles(''); }}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                    scanDepth === 100 && !customMaxFiles
-                      ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200'
+                  onClick={() => { setScanDepth(0); setCustomMaxFiles(''); }}
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer min-h-[44px] flex flex-col items-center justify-center ${
+                    scanDepth === 0 && !customMaxFiles
+                      ? 'bg-emerald-600/30 border-emerald-500 text-emerald-200 font-bold ring-1 ring-emerald-500/40'
                       : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  Standard (100)
+                  <span className="font-bold">All Files</span>
+                  <span className="text-[9px] opacity-75">100% Full Repo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setScanDepth(5000); setCustomMaxFiles(''); }}
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer min-h-[44px] flex flex-col items-center justify-center ${
+                    scanDepth === 5000 && !customMaxFiles
+                      ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200 font-bold ring-1 ring-indigo-500/40'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <span className="font-bold">Massive</span>
+                  <span className="text-[9px] opacity-75">5,000+ Files</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setScanDepth(1000); setCustomMaxFiles(''); }}
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer min-h-[44px] flex flex-col items-center justify-center ${
+                    scanDepth === 1000 && !customMaxFiles
+                      ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200 font-bold ring-1 ring-indigo-500/40'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <span className="font-bold">Enterprise</span>
+                  <span className="text-[9px] opacity-75">1,000 Files</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => { setScanDepth(250); setCustomMaxFiles(''); }}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer min-h-[44px] flex flex-col items-center justify-center ${
                     scanDepth === 250 && !customMaxFiles
-                      ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200'
+                      ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200 font-bold ring-1 ring-indigo-500/40'
                       : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  Deep (250)
+                  <span className="font-bold">Standard</span>
+                  <span className="text-[9px] opacity-75">250 Files</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => { setScanDepth(500); setCustomMaxFiles(''); }}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                    scanDepth === 500 && !customMaxFiles
-                      ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Enterprise (500)
-                </button>
-                <div className="col-span-3 sm:col-span-1">
+                <div className="col-span-2 sm:col-span-1">
                   <input
                     type="number"
-                    min={10}
-                    max={1000}
+                    min={1}
                     value={customMaxFiles}
                     onChange={(e) => setCustomMaxFiles(e.target.value)}
-                    placeholder="Custom (e.g. 350)"
-                    className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none font-mono"
+                    placeholder="Limit (e.g. 10000)"
+                    className="w-full h-full min-h-[44px] px-2.5 py-1.5 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none font-mono"
                   />
                 </div>
               </div>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Prioritizes routes, controllers, middleware, models, database schemas, and business logic across the entire repository tree.
+                {scanDepth === 0 && !customMaxFiles
+                  ? 'Ultra-robust enterprise streaming downloads the full repository archive. Every source code, config, and script file will be extracted and scanned with zero omission.'
+                  : 'Prioritizes routes, controllers, middleware, models, database schemas, and business logic up to the chosen ceiling.'}
               </p>
             </div>
 
             <button
               type="submit"
               disabled={isLoading || isFetchingGithub || !githubUrl.trim()}
-              className={`w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-lg text-sm font-semibold transition-colors duration-150 ${
+              className={`w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-lg text-sm font-semibold transition-colors duration-150 min-h-[48px] ${
                 isLoading || isFetchingGithub || !githubUrl.trim()
                   ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                  : 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer'
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer shadow-lg shadow-indigo-600/25'
               }`}
             >
               {isFetchingGithub || isLoading ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin text-indigo-200" />
-                  <span>Fetching & Auditing GitHub Repository...</span>
+                  <span>Streaming & Auditing GitHub Repository...</span>
                 </>
               ) : (
                 <>
                   <Github className="w-4 h-4" />
-                  <span>Fetch & Run Full Audit ({customMaxFiles || scanDepth} max files)</span>
+                  <span>
+                    Fetch & Run Full Audit {customMaxFiles ? `(${Number(customMaxFiles).toLocaleString()} files max)` : scanDepth === 0 ? '(100% All Repository Files)' : `(${scanDepth.toLocaleString()} files max)`}
+                  </span>
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </>
               )}
@@ -421,18 +440,18 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                 Drop your codebase files or directory here
               </h3>
               
-              <div className="flex items-center justify-center gap-3 mt-3 flex-wrap">
+              <div className="flex items-center justify-center gap-3 mt-3 flex-col sm:flex-row w-full max-w-sm mx-auto">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md transition-all cursor-pointer min-h-[44px] flex items-center justify-center"
                 >
                   Browse Files
                 </button>
                 <button
                   type="button"
                   onClick={() => folderInputRef.current?.click()}
-                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 min-h-[44px]"
                 >
                   <FolderGit2 className="w-3.5 h-3.5 text-indigo-400" />
                   <span>Upload Whole Folder</span>
@@ -447,43 +466,77 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
             {/* Uploaded Files Staging List */}
             {files.length > 0 && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Staged Files for Analysis ({files.length})
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setFiles([])}
-                    className="text-xs text-rose-400 hover:text-rose-300 font-semibold cursor-pointer"
-                  >
-                    Clear All
-                  </button>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      Staged Files ({files.length.toLocaleString()})
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
+                      100% Ingested
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {files.length > 20 && (
+                      <input
+                        type="text"
+                        value={stagedSearch}
+                        onChange={(e) => setStagedSearch(e.target.value)}
+                        placeholder="Filter files..."
+                        className="px-2.5 py-1 bg-slate-900 border border-slate-800 rounded text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono w-40"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setFiles([])}
+                      className="text-xs text-rose-400 hover:text-rose-300 font-semibold cursor-pointer"
+                    >
+                      Clear All
+                    </button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                  {files.map((file, idx) => (
-                    <div
-                      key={file.id}
-                      className="flex items-center justify-between p-2.5 bg-[#0B0F17] border border-slate-800 rounded-lg text-xs"
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <FileCode className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                        <span className="font-mono text-slate-200 truncate">{file.name}</span>
-                        <span className="text-[10px] text-slate-500 font-mono">
-                          ({(file.size / 1024).toFixed(1)} KB)
-                        </span>
+                {(() => {
+                  const filteredFiles = stagedSearch.trim()
+                    ? files.filter((f) => f.path?.toLowerCase().includes(stagedSearch.toLowerCase()) || f.name.toLowerCase().includes(stagedSearch.toLowerCase()))
+                    : files;
+                  const displayedFiles = filteredFiles.slice(0, 60);
+
+                  return (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                        {displayedFiles.map((file, idx) => (
+                          <div
+                            key={file.id || `${file.path}-${idx}`}
+                            className="flex items-center justify-between p-2.5 bg-[#0B0F17] border border-slate-800 rounded-lg text-xs hover:border-slate-700 transition-colors"
+                          >
+                            <div className="flex items-center gap-2 truncate pr-2">
+                              <FileCode className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                              <span className="font-mono text-slate-200 truncate" title={file.path || file.name}>
+                                {file.path || file.name}
+                              </span>
+                              <span className="text-[10px] text-slate-500 font-mono shrink-0">
+                                ({(file.size / 1024).toFixed(1)} KB)
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleRemoveFile(idx); }}
+                              className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer shrink-0"
+                              title="Remove file"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleRemoveFile(idx); }}
-                        className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer"
-                        title="Remove file"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {filteredFiles.length > displayedFiles.length && (
+                        <p className="text-[11px] text-slate-400 text-center font-mono">
+                          Showing first {displayedFiles.length} of {filteredFiles.length.toLocaleString()} files (all {files.length.toLocaleString()} files are retained in memory and will be fully audited).
+                        </p>
+                      )}
                     </div>
-                  ))}
-                </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -518,16 +571,16 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
         {ingestMode === 'paste' && (
           <div className="space-y-4">
             {/* File Switcher / New Tab */}
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
                 {files.map((file, idx) => (
                   <button
                     key={file.id}
                     type="button"
                     onClick={() => setActiveFileIndex(idx)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-mono transition-all cursor-pointer whitespace-nowrap min-h-[40px] ${
                       idx === activeFileIndex
-                        ? 'bg-indigo-600 text-white font-semibold'
+                        ? 'bg-indigo-600 text-white font-semibold shadow-sm'
                         : 'bg-[#0B0F17] text-slate-400 hover:text-slate-200 border border-slate-800'
                     }`}
                   >
@@ -535,7 +588,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                     {files.length > 1 && (
                       <span
                         onClick={(e) => { e.stopPropagation(); handleRemoveFile(idx); }}
-                        className="hover:text-rose-300 ml-1"
+                        className="hover:text-rose-300 ml-1 p-0.5"
                       >
                         ×
                       </span>
@@ -545,7 +598,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                 <button
                   type="button"
                   onClick={handleAddNewBlankFile}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 cursor-pointer font-medium"
+                  className="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs flex items-center gap-1 cursor-pointer font-medium whitespace-nowrap min-h-[40px]"
                   title="Add another file"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -554,18 +607,21 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
               </div>
 
               {activeFile && (
-                <input
-                  type="text"
-                  value={activeFile.name}
-                  onChange={(e) => {
-                    const newName = e.target.value;
-                    setFiles((prev) =>
-                      prev.map((f, idx) => (idx === activeFileIndex ? { ...f, name: newName, path: `src/${newName}` } : f))
-                    );
-                  }}
-                  className="px-2.5 py-1 bg-[#0B0F17] border border-slate-800 rounded-lg text-xs font-mono text-indigo-300 w-36 text-right focus:outline-none focus:border-indigo-500"
-                  placeholder="filename.ts"
-                />
+                <div className="flex items-center gap-1.5 justify-end">
+                  <span className="text-[10px] text-slate-500 font-mono hidden xs:inline">Filename:</span>
+                  <input
+                    type="text"
+                    value={activeFile.name}
+                    onChange={(e) => {
+                      const newName = e.target.value;
+                      setFiles((prev) =>
+                        prev.map((f, idx) => (idx === activeFileIndex ? { ...f, name: newName, path: `src/${newName}` } : f))
+                      );
+                    }}
+                    className="w-full sm:w-40 px-2.5 py-1.5 bg-[#0B0F17] border border-slate-800 rounded-lg text-xs font-mono text-indigo-300 focus:outline-none focus:border-indigo-500 min-h-[36px]"
+                    placeholder="filename.ts"
+                  />
+                </div>
               )}
             </div>
 
