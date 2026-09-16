@@ -369,12 +369,23 @@ function AppContent() {
       )}
 
       {errorMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-rose-950/90 border border-rose-500/40 text-rose-200 rounded-xl shadow-2xl backdrop-blur-md text-xs font-medium animate-in fade-in slide-in-from-bottom-3 duration-300">
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 bg-rose-950/90 border border-rose-500/40 text-rose-200 rounded-xl shadow-2xl backdrop-blur-md text-xs font-medium animate-in fade-in slide-in-from-bottom-3 duration-300 max-w-md">
           <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-          <span>{errorMessage}</span>
+          <span className="flex-1">{errorMessage}</span>
+          {files.length > 0 && (
+            <button
+              onClick={() => {
+                setErrorMessage(null);
+                handleRunAudit();
+              }}
+              className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer"
+            >
+              Retry
+            </button>
+          )}
           <button
             onClick={() => setErrorMessage(null)}
-            className="ml-2 text-rose-400 hover:text-white font-bold"
+            className="text-rose-400 hover:text-white font-bold p-1 cursor-pointer"
           >
             ✕
           </button>
@@ -390,6 +401,7 @@ function AppContent() {
             setActiveTab={setActiveTab}
             auditResult={auditResult}
             isLoading={isLoading}
+            onReAudit={handleRunAudit}
           />
         )}
 
@@ -455,6 +467,8 @@ function AppContent() {
             files={files}
             auditResult={auditResult}
             onNavigate={setActiveTab}
+            onReAudit={handleRunAudit}
+            isLoading={isLoading}
             onUpdateFileContent={(filePath, newContent) => {
               setFiles((prev) =>
                 prev.map((f) =>

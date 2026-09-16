@@ -6,7 +6,8 @@ import {
   Sparkles, 
   Download,
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  RotateCw
 } from 'lucide-react';
 import { ActiveTab, AuditResult } from '../types';
 
@@ -15,6 +16,7 @@ interface StorylineStepperProps {
   setActiveTab: (tab: ActiveTab) => void;
   auditResult: AuditResult | null;
   isLoading: boolean;
+  onReAudit?: () => void;
 }
 
 export const STORYLINE_STEPS: Array<{
@@ -34,15 +36,18 @@ export const STORYLINE_STEPS: Array<{
 export const StorylineStepper: React.FC<StorylineStepperProps> = ({
   activeTab,
   setActiveTab,
-  auditResult
+  auditResult,
+  isLoading,
+  onReAudit
 }) => {
   const currentStep = STORYLINE_STEPS.find(s => s.id === activeTab) || STORYLINE_STEPS[0];
   const hasAudit = auditResult !== null;
 
   return (
-    <nav aria-label="Audit Process Steps" className="w-full bg-slate-900/80 border border-slate-800 rounded-xl p-2 sm:p-2.5 mb-6 backdrop-blur-md shadow-xl overflow-hidden">
-      <div className="flex items-center overflow-x-auto no-scrollbar gap-1.5 sm:gap-2 pb-1 sm:pb-0 px-0.5 scroll-smooth">
-        {STORYLINE_STEPS.map((step, idx) => {
+    <nav aria-label="Audit Process Steps" className="stepper-container w-full bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl p-2 sm:p-2.5 mb-6 backdrop-blur-md shadow-xl overflow-hidden">
+      <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+        <div className="flex-1 flex items-center overflow-x-auto no-scrollbar gap-1.5 sm:gap-2 pb-1 sm:pb-0 px-0.5 scroll-smooth">
+          {STORYLINE_STEPS.map((step, idx) => {
           const isActive = activeTab === step.id;
           const isPassed = hasAudit && step.stepNumber < currentStep.stepNumber;
           const isAccessible = hasAudit;
@@ -61,8 +66,8 @@ export const StorylineStepper: React.FC<StorylineStepperProps> = ({
                   isActive
                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25 border border-indigo-400/30 font-semibold'
                     : isAccessible
-                    ? 'text-slate-300 hover:text-white hover:bg-slate-800 hover:-translate-y-0.5'
-                    : 'text-slate-600 cursor-not-allowed opacity-40'
+                    ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800 hover:-translate-y-0.5'
+                    : 'text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-40'
                 }`}
               >
                 <div
@@ -70,12 +75,12 @@ export const StorylineStepper: React.FC<StorylineStepperProps> = ({
                     isActive
                       ? 'bg-white/20 text-white'
                       : isPassed
-                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-700/50'
-                      : 'bg-slate-800 text-slate-400 border border-slate-700'
+                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-700/50'
+                      : 'bg-slate-100 text-slate-500 border border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
                   }`}
                 >
                   {isPassed ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   ) : (
                     step.stepNumber
                   )}
@@ -89,7 +94,7 @@ export const StorylineStepper: React.FC<StorylineStepperProps> = ({
                   <span 
                     title={`${auditResult?.summary?.totalVulnerabilities} Security Vulnerabilities`}
                     className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
-                      isActive ? 'bg-indigo-900 text-indigo-100' : 'bg-rose-950 text-rose-300 border border-rose-800/50'
+                      isActive ? 'bg-indigo-900 text-indigo-100' : 'bg-rose-100 text-rose-700 border border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800/50'
                     }`}
                   >
                     {auditResult?.summary?.totalVulnerabilities}
@@ -101,7 +106,7 @@ export const StorylineStepper: React.FC<StorylineStepperProps> = ({
                   <span 
                     title={`${auditResult?.summary?.totalCodeSmells} Code Smells (${(auditResult?.summary?.totalCodeSmells ?? 0) + (auditResult?.summary?.totalVulnerabilities ?? 0)} Total Patches)`}
                     className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
-                      isActive ? 'bg-indigo-900 text-indigo-100' : 'bg-purple-950 text-purple-300 border border-purple-800/50'
+                      isActive ? 'bg-indigo-900 text-indigo-100' : 'bg-purple-100 text-purple-700 border border-purple-300 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800/50'
                     }`}
                   >
                     {auditResult?.summary?.totalCodeSmells}
@@ -110,11 +115,29 @@ export const StorylineStepper: React.FC<StorylineStepperProps> = ({
               </button>
 
               {idx < STORYLINE_STEPS.length - 1 && (
-                <ChevronRight className="w-4 h-4 text-slate-700 shrink-0 hidden md:block select-none" />
+                <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-700 shrink-0 hidden md:block select-none" />
               )}
             </React.Fragment>
           );
         })}
+        </div>
+
+        {/* Dedicated Re-Audit Action */}
+        {onReAudit && hasAudit && (
+          <div className="pl-1 sm:pl-2 shrink-0 border-l border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              id="stepper-re-audit-button"
+              onClick={onReAudit}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold transition-all duration-200 hover:-translate-y-0.5 active:scale-95 cursor-pointer shadow-sm shadow-emerald-600/20 whitespace-nowrap min-h-[44px]"
+              title="Re-run deep codebase audit on current files"
+            >
+              <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{isLoading ? 'Auditing...' : 'Re-Audit'}</span>
+            </button>
+          </div>
+        )}
       </div>
     </nav>
   );

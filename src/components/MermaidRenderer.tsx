@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import DOMPurify from 'dompurify';
 import { Copy, Check, ZoomIn, ZoomOut, RotateCcw, AlertTriangle, Code2, RefreshCw } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 interface MermaidRendererProps {
   chart: string;
@@ -11,7 +12,7 @@ interface MermaidRendererProps {
 /**
  * Sanitizes and repairs common Mermaid.js syntax errors produced by LLMs or dynamic string templates.
  */
-export function sanitizeMermaidChart(raw: string): string {
+export function sanitizeMermaidChart(raw: string, isLightMode: boolean = false): string {
   if (!raw || typeof raw !== 'string' || raw.trim().length === 0) {
     return 'graph TD\n  Client["Web Client"] --> Server["API Gateway"]\n  Server --> Database[("Database Store")]';
   }
@@ -21,6 +22,18 @@ export function sanitizeMermaidChart(raw: string): string {
     .replace(/```mermaid/gi, '')
     .replace(/```/g, '')
     .trim();
+
+  // In light mode, replace hardcoded dark color styles like color:#fff or dark fill backgrounds
+  if (isLightMode) {
+    clean = clean
+      .replace(/fill:#0[a-f0-9]{5}/gi, 'fill:#e0e7ff')
+      .replace(/fill:#1[a-f0-9]{5}/gi, 'fill:#ede9fe')
+      .replace(/fill:#2[a-f0-9]{5}/gi, 'fill:#f1f5f9')
+      .replace(/fill:#3[a-f0-9]{5}/gi, 'fill:#fae8ff')
+      .replace(/fill:#7[a-f0-9]{5}/gi, 'fill:#fee2e2')
+      .replace(/color:#fff(?:fff)?/gi, 'color:#0f172a')
+      .replace(/color:#f8fafc/gi, 'color:#0f172a');
+  }
 
   // 2. Ensure standard diagram header
   const validHeaders = ['graph ', 'flowchart ', 'sequenceDiagram', 'classDiagram', 'stateDiagram', 'erDiagram', 'gitGraph', 'gantt'];
@@ -182,6 +195,7 @@ function generateGuaranteedFallback(raw: string): string {
 
 export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id = 'mermaid-graph' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { isDark, isLight } = useTheme();
   const [svgContent, setSvgContent] = useState<string>('');
   const [renderError, setRenderError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -189,27 +203,50 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id = 'm
   const [isRawView, setIsRawView] = useState(false);
   const [effectiveChart, setEffectiveChart] = useState<string>(chart);
 
+  // Initialize Mermaid whenever effective theme (dark/light) changes
   useEffect(() => {
     mermaid.initialize({
       startOnLoad: false,
-      theme: 'dark',
-      securityLevel: 'loose',
-      themeVariables: {
-        darkMode: true,
-        background: '#090d16',
-        primaryColor: '#4f46e5',
-        primaryTextColor: '#f8fafc',
-        primaryBorderColor: '#6366f1',
-        lineColor: '#818cf8',
-        secondaryColor: '#1e1b4b',
-        tertiaryColor: '#0f172a'
-      },
+      theme: isLight ? 'default' : 'dark',
+      securityLevel: 'strict', // CWE-79 XSS defense - block script execution in diagram definitions
+      themeVariables: isLight
+        ? {
+            darkMode: false,
+            background: '#ffffff',
+            primaryColor: '#e0e7ff',
+            primaryTextColor: '#0f172a',
+            primaryBorderColor: '#6366f1',
+            lineColor: '#4f46e5',
+            secondaryColor: '#f1f5f9',
+            tertiaryColor: '#f8fafc',
+            edgeLabelBackground: '#ffffff',
+            clusterBkg: '#f8fafc',
+            clusterBorder: '#cbd5e1',
+            nodeTextColor: '#0f172a',
+            fontSize: '13px'
+          }
+        : {
+            darkMode: true,
+            background: '#090d16',
+            primaryColor: '#4f46e5',
+            primaryTextColor: '#f8fafc',
+            primaryBorderColor: '#6366f1',
+            lineColor: '#818cf8',
+            secondaryColor: '#1e1b4b',
+            tertiaryColor: '#0f172a',
+            edgeLabelBackground: '#0b0f17',
+            clusterBkg: '#0b0f17',
+            clusterBorder: '#334155',
+            nodeTextColor: '#f8fafc',
+            fontSize: '13px'
+          },
       flowchart: {
         htmlLabels: true,
-        curve: 'basis'
+        curve: 'basis',
+        useMaxWidth: false
       }
     });
-  }, []);
+  }, [isLight]);
 
   useEffect(() => {
     let isMounted = true;
@@ -222,7 +259,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id = 'm
       }
 
       setRenderError(null);
-      const sanitized = sanitizeMermaidChart(chart);
+      const sanitized = sanitizeMermaidChart(chart, isLight);
       setEffectiveChart(sanitized);
 
       const uniqueId = `mermaid-${Math.random().toString(36).substring(2, 9)}`;
@@ -260,24 +297,18 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id = 'm
     return () => {
       isMounted = false;
     };
-  }, [chart]);
+  }, [chart, isLight]);
 
-  // Safely mount sanitized SVG elements directly into the DOM tree (CWE-79 XSS & CWE-611 XXE Defense)
-  // Utilizes browser-native template sanitization via DOMPurify without XML parser or external DTD processing
-  useEffect(() => {
-    if (!containerRef.current || !svgContent || isRawView) return;
-
-    const cleanFragment = DOMPurify.sanitize(svgContent, {
-      RETURN_DOM_FRAGMENT: true,
+  // Sanitize rendered Mermaid SVG output with DOMPurify (CWE-79 / OWASP A03:2021 Client-Side XSS Defense)
+  const renderedChart = svgContent;
+  const cleanHtml = React.useMemo(() => {
+    if (!renderedChart) return '';
+    return DOMPurify.sanitize(renderedChart, {
       USE_PROFILES: { svg: true, svgFilters: true },
-      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'style'],
-      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'href']
-    }) as Node;
-
-    if (cleanFragment) {
-      containerRef.current.replaceChildren(cleanFragment);
-    }
-  }, [svgContent, isRawView]);
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'style', 'input'],
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'href', 'xlink:href']
+    });
+  }, [renderedChart]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(effectiveChart || chart);
@@ -290,16 +321,16 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id = 'm
   const handleResetZoom = () => setZoom(1);
 
   return (
-    <div className="flex flex-col h-full bg-slate-950/80 border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xl">
       {/* Visualizer Top Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 px-3.5 sm:px-4 py-3 bg-slate-900/90 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 px-3.5 sm:px-4 py-3 bg-slate-50 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2 flex-wrap">
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
             <span className="sm:hidden">Architecture Graph</span>
             <span className="hidden sm:inline">Dynamic Architecture Flow Graph</span>
           </span>
-          <span className="text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">
+          <span className="text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 font-mono font-bold">
             Mermaid.js
           </span>
         </div>
@@ -311,7 +342,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id = 'm
             className={`px-2.5 py-1.5 text-xs rounded-lg font-medium flex items-center gap-1.5 transition-colors min-h-[36px] ${
               isRawView
                 ? 'bg-indigo-600 text-white font-semibold'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border border-slate-300 dark:border-transparent'
             }`}
             title="Toggle Raw Mermaid Script"
           >
@@ -319,22 +350,22 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id = 'm
             <span>{isRawView ? 'Visual View' : 'Raw Script'}</span>
           </button>
 
-          <div className="h-4 w-px bg-slate-800 mx-0.5 sm:mx-1 hidden sm:block" />
+          <div className="h-4 w-px bg-slate-300 dark:bg-slate-800 mx-0.5 sm:mx-1 hidden sm:block" />
 
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={handleZoomOut}
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
+              className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border border-slate-300 dark:border-transparent transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
               title="Zoom Out"
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
-            <span className="text-xs font-mono text-slate-400 px-1">{Math.round(zoom * 100)}%</span>
+            <span className="text-xs font-mono text-slate-600 dark:text-slate-400 px-1 font-semibold">{Math.round(zoom * 100)}%</span>
             <button
               type="button"
               onClick={handleZoomIn}
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
+              className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border border-slate-300 dark:border-transparent transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
               title="Zoom In"
             >
               <ZoomIn className="w-3.5 h-3.5" />
@@ -342,7 +373,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id = 'm
             <button
               type="button"
               onClick={handleResetZoom}
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
+              className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border border-slate-300 dark:border-transparent transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
               title="Reset Zoom"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -352,36 +383,37 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id = 'm
           <button
             type="button"
             onClick={handleCopy}
-            className="px-2.5 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-medium flex items-center gap-1.5 transition-colors min-h-[36px] cursor-pointer"
+            className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-600/20 dark:hover:bg-indigo-600/30 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 text-xs font-medium flex items-center gap-1.5 transition-colors min-h-[36px] cursor-pointer"
             title="Copy Mermaid Syntax"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
             <span>{copied ? 'Copied' : 'Copy'}</span>
           </button>
         </div>
       </div>
 
       {/* Diagram Canvas or Raw Code */}
-      <div className="relative flex-1 min-h-[320px] sm:min-h-[420px] overflow-auto p-3 sm:p-6 flex items-center justify-center bg-radial from-slate-900/50 to-slate-950">
+      <div className="relative flex-1 min-h-[340px] sm:min-h-[440px] overflow-auto p-4 sm:p-8 flex items-center justify-center bg-slate-50/50 dark:bg-radial dark:from-slate-900/50 dark:to-slate-950">
         {isRawView ? (
           <div className="w-full h-full p-4">
             <pre className="w-full h-full p-4 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono text-indigo-200 overflow-auto selection:bg-indigo-500/40">
               {effectiveChart}
             </pre>
           </div>
-        ) : svgContent ? (
+        ) : cleanHtml ? (
           <div
             ref={containerRef}
             style={{ transform: `scale(${zoom})`, transformOrigin: 'center center', transition: 'transform 0.15s ease-out' }}
             className="w-full flex justify-center items-center select-none"
+            dangerouslySetInnerHTML={{ __html: cleanHtml }}
           />
         ) : (
-          <div className="max-w-lg p-6 bg-slate-900/60 border border-slate-800 rounded-xl text-center space-y-3">
-            <div className="w-10 h-10 mx-auto rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+          <div className="max-w-lg p-6 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-center space-y-3 shadow-sm">
+            <div className="w-10 h-10 mx-auto rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
               <RefreshCw className="w-5 h-5 animate-spin" />
             </div>
-            <h4 className="text-sm font-semibold text-slate-200">Rendering Architecture Diagram</h4>
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Rendering Architecture Diagram</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               Generating dependency and data flow diagram...
             </p>
           </div>

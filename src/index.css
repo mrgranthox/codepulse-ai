@@ -118,23 +118,116 @@ html, body {
   .hover\:bg-slate-800:hover,
   .hover\:bg-slate-750:hover,
   .hover\:bg-slate-850:hover {
-    background-color: #f1f5f9;
+    background-color: #e2e8f0;
   }
 
   .hover\:border-slate-700:hover {
+    border-color: #94a3b8;
+  }
+
+  /* Secondary buttons and badges using slate-800 in light mode */
+  .bg-slate-800 {
+    background-color: #f1f5f9;
+    color: #1e293b;
     border-color: #cbd5e1;
   }
 
-  /* Header backdrop blur on light */
+  button.bg-slate-800,
+  button.bg-slate-800\/80,
+  .bg-slate-800 button,
+  button.bg-slate-900 {
+    background-color: #f1f5f9;
+    color: #1e293b;
+    border-color: #cbd5e1;
+  }
+
+  button.bg-slate-800:hover,
+  button.bg-slate-800\/80:hover,
+  button.hover\:bg-slate-750:hover,
+  button.bg-slate-900:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
+
+  /* Preset and sample buttons */
+  button[id^="preset-"] {
+    background-color: #eef2ff !important;
+    color: #4338ca !important;
+    border-color: #c7d2fe !important;
+  }
+
+  button[id^="preset-"]:hover {
+    background-color: #e0e7ff !important;
+    color: #3730a3 !important;
+    border-color: #a5b4fc !important;
+  }
+
+  /* Ingestion Mode and secondary tab buttons */
+  .grid-cols-3 button:not(.bg-indigo-600) {
+    color: #475569;
+  }
+
+  .grid-cols-3 button:not(.bg-indigo-600):hover {
+    color: #0f172a;
+    background-color: #f1f5f9;
+  }
+
+  /* Header & Stepper on light */
   header {
     background-color: rgba(255, 255, 255, 0.95);
     border-color: #e2e8f0;
   }
 
-  /* Stepper on light */
   .stepper-container {
     background-color: #ffffff;
     border-color: #e2e8f0;
+  }
+
+  .stepper-container button:not(.bg-indigo-600) {
+    color: #475569;
+  }
+
+  .stepper-container button:not(.bg-indigo-600):hover {
+    color: #0f172a;
+    background-color: #f1f5f9;
+  }
+
+  /* Badge and Pill light mode adjustments */
+  .bg-indigo-950,
+  .bg-indigo-950\/80,
+  .bg-indigo-950\/50 {
+    background-color: #e0e7ff;
+    color: #3730a3;
+    border-color: #c7d2fe;
+  }
+
+  .bg-emerald-950,
+  .bg-emerald-950\/80 {
+    background-color: #d1fae5;
+    color: #065f46;
+    border-color: #a7f3d0;
+  }
+
+  .bg-rose-950,
+  .bg-rose-950\/80 {
+    background-color: #ffe4e6;
+    color: #9f1239;
+    border-color: #fecdd3;
+  }
+
+  .bg-amber-950,
+  .bg-amber-950\/80 {
+    background-color: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+  }
+
+  .bg-purple-950,
+  .bg-purple-950\/80 {
+    background-color: #f3e8ff;
+    color: #6b21a8;
+    border-color: #e9d5ff;
   }
 
   /* Modal Overlays */

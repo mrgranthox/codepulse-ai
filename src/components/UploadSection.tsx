@@ -184,14 +184,14 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
 
       {/* Centered Ingestion Modes Switcher */}
       <div className="flex justify-center w-full">
-        <div className="grid grid-cols-3 w-full sm:w-auto p-1 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl shadow-xl gap-1">
+        <div className="grid grid-cols-3 w-full sm:w-auto p-1 bg-slate-900/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl shadow-xl gap-1">
           <button
             type="button"
             onClick={() => setIngestMode('github')}
             className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer min-h-[44px] ${
               ingestMode === 'github'
-                ? 'bg-indigo-600 text-white font-bold'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <Github className="w-4 h-4 shrink-0" />
@@ -203,14 +203,14 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
             onClick={() => setIngestMode('upload')}
             className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer min-h-[44px] ${
               ingestMode === 'upload'
-                ? 'bg-indigo-600 text-white font-bold'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <Upload className="w-4 h-4 shrink-0" />
             <span className="truncate">Upload</span>
             {files.length > 0 && (
-              <span className="hidden xs:inline ml-0.5 px-1.5 py-0.2 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800/50 text-[10px] font-mono font-bold">
+              <span className="hidden xs:inline ml-0.5 px-1.5 py-0.2 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50 text-[10px] font-mono font-bold">
                 {files.length}
               </span>
             )}
@@ -224,8 +224,8 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
             }}
             className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer min-h-[44px] ${
               ingestMode === 'paste'
-                ? 'bg-indigo-600 text-white font-bold'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <Code2 className="w-4 h-4 shrink-0" />
@@ -256,13 +256,13 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
               </div>
               
               {/* Quick Sample Presets */}
-              <div className="flex items-center gap-2 pt-1 flex-wrap text-xs text-slate-400">
-                <span className="text-[11px] font-semibold text-slate-400">Sample Repos:</span>
+              <div className="flex items-center gap-2 pt-1 flex-wrap text-xs text-slate-500 dark:text-slate-400">
+                <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Sample Repos:</span>
                 <button
                   type="button"
                   id="preset-express"
                   onClick={() => setGithubUrl('https://github.com/expressjs/express')}
-                  className="px-2.5 py-1.5 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer min-h-[36px] flex items-center justify-center"
+                  className="px-2.5 py-1.5 rounded-md bg-indigo-50/80 dark:bg-slate-800/80 hover:bg-indigo-100 dark:hover:bg-slate-800 border border-indigo-200/80 dark:border-slate-700 text-[11px] font-mono text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-white transition-colors cursor-pointer min-h-[36px] flex items-center justify-center font-medium shadow-xs"
                 >
                   Express.js
                 </button>
@@ -270,7 +270,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                   type="button"
                   id="preset-fastify"
                   onClick={() => setGithubUrl('https://github.com/fastify/fastify')}
-                  className="px-2.5 py-1.5 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer min-h-[36px] flex items-center justify-center"
+                  className="px-2.5 py-1.5 rounded-md bg-indigo-50/80 dark:bg-slate-800/80 hover:bg-indigo-100 dark:hover:bg-slate-800 border border-indigo-200/80 dark:border-slate-700 text-[11px] font-mono text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-white transition-colors cursor-pointer min-h-[36px] flex items-center justify-center font-medium shadow-xs"
                 >
                   Fastify
                 </button>
@@ -278,7 +278,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                   type="button"
                   id="preset-react"
                   onClick={() => setGithubUrl('https://github.com/facebook/react')}
-                  className="px-2.5 py-1.5 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer min-h-[36px] flex items-center justify-center"
+                  className="px-2.5 py-1.5 rounded-md bg-indigo-50/80 dark:bg-slate-800/80 hover:bg-indigo-100 dark:hover:bg-slate-800 border border-indigo-200/80 dark:border-slate-700 text-[11px] font-mono text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-white transition-colors cursor-pointer min-h-[36px] flex items-center justify-center font-medium shadow-xs"
                 >
                   React
                 </button>
@@ -286,7 +286,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                   type="button"
                   id="preset-juice-shop"
                   onClick={() => setGithubUrl('https://github.com/juice-shop/juice-shop')}
-                  className="px-2.5 py-1.5 rounded-md bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-indigo-300 hover:text-white transition-colors cursor-pointer min-h-[36px] flex items-center justify-center"
+                  className="px-2.5 py-1.5 rounded-md bg-indigo-50/80 dark:bg-slate-800/80 hover:bg-indigo-100 dark:hover:bg-slate-800 border border-indigo-200/80 dark:border-slate-700 text-[11px] font-mono text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-white transition-colors cursor-pointer min-h-[36px] flex items-center justify-center font-medium shadow-xs"
                 >
                   OWASP Juice Shop
                 </button>
@@ -313,8 +313,8 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                   onClick={() => { setScanDepth(0); setCustomMaxFiles(''); }}
                   className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer min-h-[44px] flex flex-col items-center justify-center ${
                     scanDepth === 0 && !customMaxFiles
-                      ? 'bg-emerald-600/30 border-emerald-500 text-emerald-200 font-bold ring-1 ring-emerald-500/40'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                      ? 'bg-emerald-100 dark:bg-emerald-600/30 border-emerald-500 text-emerald-800 dark:text-emerald-200 font-bold ring-1 ring-emerald-500/40'
+                      : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
                   }`}
                 >
                   <span className="font-bold">All Files</span>
@@ -325,8 +325,8 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                   onClick={() => { setScanDepth(5000); setCustomMaxFiles(''); }}
                   className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer min-h-[44px] flex flex-col items-center justify-center ${
                     scanDepth === 5000 && !customMaxFiles
-                      ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200 font-bold ring-1 ring-indigo-500/40'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                      ? 'bg-indigo-100 dark:bg-indigo-600/30 border-indigo-500 text-indigo-800 dark:text-indigo-200 font-bold ring-1 ring-indigo-500/40'
+                      : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
                   }`}
                 >
                   <span className="font-bold">Massive</span>
@@ -337,8 +337,8 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                   onClick={() => { setScanDepth(1000); setCustomMaxFiles(''); }}
                   className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer min-h-[44px] flex flex-col items-center justify-center ${
                     scanDepth === 1000 && !customMaxFiles
-                      ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200 font-bold ring-1 ring-indigo-500/40'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                      ? 'bg-indigo-100 dark:bg-indigo-600/30 border-indigo-500 text-indigo-800 dark:text-indigo-200 font-bold ring-1 ring-indigo-500/40'
+                      : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
                   }`}
                 >
                   <span className="font-bold">Enterprise</span>
@@ -349,8 +349,8 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                   onClick={() => { setScanDepth(250); setCustomMaxFiles(''); }}
                   className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer min-h-[44px] flex flex-col items-center justify-center ${
                     scanDepth === 250 && !customMaxFiles
-                      ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200 font-bold ring-1 ring-indigo-500/40'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                      ? 'bg-indigo-100 dark:bg-indigo-600/30 border-indigo-500 text-indigo-800 dark:text-indigo-200 font-bold ring-1 ring-indigo-500/40'
+                      : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
                   }`}
                 >
                   <span className="font-bold">Standard</span>
@@ -451,9 +451,9 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                 <button
                   type="button"
                   onClick={() => folderInputRef.current?.click()}
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 min-h-[44px]"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 min-h-[44px]"
                 >
-                  <FolderGit2 className="w-3.5 h-3.5 text-indigo-400" />
+                  <FolderGit2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                   <span>Upload Whole Folder</span>
                 </button>
               </div>

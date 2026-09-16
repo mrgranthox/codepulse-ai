@@ -73,9 +73,9 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
 
   if (compact) {
     return (
-      <div className={`flex items-center justify-between gap-2 p-2 bg-slate-950/80 border border-slate-800 rounded-lg text-xs ${className}`}>
-        <div className="text-slate-400 font-mono text-[11px]">
-          Showing <span className="text-slate-200 font-semibold">{startItem}–{endItem}</span> of <span className="text-white font-bold">{totalItems}</span>
+      <div className={`flex items-center justify-between gap-2 p-2 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-lg text-xs ${className}`}>
+        <div className="text-slate-600 dark:text-slate-400 font-mono text-[11px]">
+          Showing <span className="text-slate-900 dark:text-slate-200 font-semibold">{startItem}–{endItem}</span> of <span className="text-slate-900 dark:text-white font-bold">{totalItems}</span>
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -83,14 +83,14 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
             type="button"
             disabled={currentPage <= 1 || isAll}
             onClick={() => onPageChange(currentPage - 1)}
-            className="p-1 rounded bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-slate-900 text-slate-300 border border-slate-800 cursor-pointer transition-colors"
+            className="p-1 rounded bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-white dark:disabled:hover:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 cursor-pointer transition-colors"
             title="Previous Page"
             aria-label="Previous page"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
 
-          <span className="text-slate-300 font-mono text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800">
+          <span className="text-slate-700 dark:text-slate-300 font-mono text-[11px] px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             {isAll ? 'All' : `${currentPage} / ${totalPages}`}
           </span>
 
@@ -98,7 +98,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
             type="button"
             disabled={currentPage >= totalPages || isAll}
             onClick={() => onPageChange(currentPage + 1)}
-            className="p-1 rounded bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-slate-900 text-slate-300 border border-slate-800 cursor-pointer transition-colors"
+            className="p-1 rounded bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-white dark:disabled:hover:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 cursor-pointer transition-colors"
             title="Next Page"
             aria-label="Next page"
           >
@@ -110,21 +110,21 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
   }
 
   return (
-    <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl shadow-xl ${className}`}>
+    <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm dark:shadow-xl ${className}`}>
       {/* Left: Summary & Page Size selector */}
-      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 w-full sm:w-auto justify-between sm:justify-start">
+      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-400 w-full sm:w-auto justify-between sm:justify-start">
         <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-indigo-400 shrink-0" />
+          <Layers className="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" />
           <span>
-            Showing <strong className="text-white font-mono">{startItem}–{endItem}</strong> of{' '}
-            <strong className="text-indigo-300 font-mono font-bold">{totalItems}</strong> {itemLabel}
+            Showing <strong className="text-slate-900 dark:text-white font-mono">{startItem}–{endItem}</strong> of{' '}
+            <strong className="text-indigo-600 dark:text-indigo-300 font-mono font-bold">{totalItems}</strong> {itemLabel}
           </span>
         </div>
 
         {/* Page Size selector */}
-        <div className="flex items-center gap-1.5 pl-2 sm:border-l sm:border-slate-800">
-          <span className="text-slate-400 text-[11px]">Per page:</span>
-          <div className="flex items-center space-x-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+        <div className="flex items-center gap-1.5 pl-2 sm:border-l sm:border-slate-200 dark:sm:border-slate-800">
+          <span className="text-slate-500 dark:text-slate-400 text-[11px]">Per page:</span>
+          <div className="flex items-center space-x-1 bg-slate-100 dark:bg-slate-950 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800">
             {pageSizeOptions.map((opt) => (
               <button
                 key={String(opt)}
@@ -132,8 +132,8 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
                 onClick={() => onPageSizeChange(opt)}
                 className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-all cursor-pointer ${
                   pageSize === opt
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                    ? 'bg-indigo-600 text-white shadow-sm font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-900'
                 }`}
               >
                 {opt}
@@ -151,7 +151,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
             type="button"
             disabled={currentPage <= 1}
             onClick={() => onPageChange(1)}
-            className="p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 disabled:opacity-25 disabled:hover:bg-slate-950 text-slate-300 border border-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-950 hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-25 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer"
             title="First Page"
             aria-label="First page"
           >
@@ -163,7 +163,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
             type="button"
             disabled={currentPage <= 1}
             onClick={() => onPageChange(currentPage - 1)}
-            className="p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 disabled:opacity-25 disabled:hover:bg-slate-950 text-slate-300 border border-slate-800 transition-colors cursor-pointer flex items-center gap-1 text-xs"
+            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-950 hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-25 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer flex items-center gap-1 text-xs"
             title="Previous Page"
             aria-label="Previous page"
           >
@@ -176,7 +176,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
             {getPageNumbers().map((num, idx) => {
               if (num === '...') {
                 return (
-                  <span key={`ellipsis-${idx}`} className="px-2 text-slate-500 font-mono text-xs select-none">
+                  <span key={`ellipsis-${idx}`} className="px-2 text-slate-400 dark:text-slate-500 font-mono text-xs select-none">
                     ...
                   </span>
                 );
@@ -191,7 +191,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
                   className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                     isCurrent
                       ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/40 border border-indigo-500'
-                      : 'bg-slate-950 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                      : 'bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
                   }`}
                 >
                   {num}
@@ -205,7 +205,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
             type="button"
             disabled={currentPage >= totalPages}
             onClick={() => onPageChange(currentPage + 1)}
-            className="p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 disabled:opacity-25 disabled:hover:bg-slate-950 text-slate-300 border border-slate-800 transition-colors cursor-pointer flex items-center gap-1 text-xs"
+            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-950 hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-25 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer flex items-center gap-1 text-xs"
             title="Next Page"
             aria-label="Next page"
           >
@@ -218,7 +218,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
             type="button"
             disabled={currentPage >= totalPages}
             onClick={() => onPageChange(totalPages)}
-            className="p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 disabled:opacity-25 disabled:hover:bg-slate-950 text-slate-300 border border-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-950 hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-25 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer"
             title="Last Page"
             aria-label="Last page"
           >
@@ -227,8 +227,8 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
 
           {/* Jump to Page Form */}
           {totalPages > 3 && (
-            <form onSubmit={handleJumpSubmit} className="flex items-center gap-1 pl-2 border-l border-slate-800">
-              <span className="text-[11px] text-slate-400">Go to</span>
+            <form onSubmit={handleJumpSubmit} className="flex items-center gap-1 pl-2 border-l border-slate-200 dark:border-slate-800">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">Go to</span>
               <input
                 type="number"
                 min={1}
@@ -237,11 +237,11 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
                 onChange={(e) => setJumpInput(e.target.value)}
                 placeholder={String(currentPage)}
                 aria-label="Go to page number"
-                className="w-12 px-1.5 py-1 bg-slate-950 border border-slate-800 rounded text-center text-xs font-mono text-white focus:outline-none focus:border-indigo-500"
+                className="w-12 px-1.5 py-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded text-center text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               />
               <button
                 type="submit"
-                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors cursor-pointer"
+                className="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs transition-colors cursor-pointer border border-slate-200 dark:border-slate-700"
                 title="Go"
                 aria-label="Submit page jump"
               >

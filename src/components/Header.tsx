@@ -12,7 +12,8 @@ import {
   Sun,
   Moon,
   Monitor,
-  Cpu
+  Cpu,
+  RotateCw
 } from 'lucide-react';
 import { ActiveTab, AuditResult } from '../types';
 import { CodePulseLogo } from './CodePulseLogo';
@@ -190,10 +191,25 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* In Extended Workspace: "+ New Audit" button */}
+            {/* In Extended Workspace: Re-Audit + "+ New Audit" button */}
             {isExtendedWorkspace && (
               <button
                 type="button"
+                id="header-re-audit-button"
+                onClick={onRunAudit}
+                disabled={isLoading || !hasFiles}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold shadow-md shadow-emerald-600/20 border border-emerald-400/30 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 cursor-pointer min-h-[40px]"
+                title="Re-run neural AST audit on current files"
+              >
+                <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                <span>{isLoading ? 'Auditing...' : 'Re-Audit'}</span>
+              </button>
+            )}
+
+            {isExtendedWorkspace && (
+              <button
+                type="button"
+                id="header-new-audit-button"
                 onClick={onNewAudit}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/25 border border-indigo-400/30 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 cursor-pointer min-h-[40px]"
               >
@@ -260,7 +276,23 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
 
-            {/* In Extended Workspace: "+ New Audit" button */}
+            {/* In Extended Workspace: Re-Audit + "+ New Audit" button */}
+            {isExtendedWorkspace && (
+              <button
+                type="button"
+                id="mobile-re-audit-button"
+                onClick={() => {
+                  onRunAudit();
+                  setMobileMenuOpen(false);
+                }}
+                disabled={isLoading || !hasFiles}
+                className="w-full flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold shadow-lg shadow-emerald-600/25 border border-emerald-400/30 transition-all min-h-[44px]"
+              >
+                <RotateCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                <span>{isLoading ? 'Re-Auditing Codebase...' : 'Re-Audit Codebase'}</span>
+              </button>
+            )}
+
             {isExtendedWorkspace && (
               <button
                 type="button"

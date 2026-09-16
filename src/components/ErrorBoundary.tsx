@@ -20,8 +20,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
     return { hasError: true, error };
   }
 
-  override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('Uncaught error caught by ErrorBoundary:', error, errorInfo);
+  override componentDidCatch(_error: Error, _errorInfo: ErrorInfo): void {
+    // Avoid sensitive information disclosure and stack trace leakage (OWASP A09:2021)
+    console.error('An unexpected error occurred.');
   }
 
   private handleReset = (): void => {
@@ -39,7 +40,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
             </div>
             <h2 className="text-lg font-bold text-white">Something went wrong</h2>
             <p className="text-xs text-slate-400 leading-relaxed">
-              {this.state.error?.message || 'An unexpected rendering error occurred.'}
+              An unexpected error occurred. Please reload the application.
             </p>
             <button
               type="button"

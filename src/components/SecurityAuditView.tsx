@@ -126,47 +126,47 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
   const getSeverityBadge = (severity: string) => {
     switch (severity?.toLowerCase()) {
       case 'critical':
-        return 'bg-rose-500/20 text-rose-300 border-rose-500/40 ring-1 ring-rose-500/30';
+        return 'bg-rose-50 text-rose-700 border-rose-300 ring-1 ring-rose-200 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/40 dark:ring-rose-500/30';
       case 'high':
-        return 'bg-amber-500/20 text-amber-300 border-amber-500/40 ring-1 ring-amber-500/30';
+        return 'bg-amber-50 text-amber-800 border-amber-300 ring-1 ring-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40 dark:ring-amber-500/30';
       case 'medium':
-        return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
+        return 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/40';
       case 'low':
-        return 'bg-slate-700/40 text-slate-300 border-slate-600';
+        return 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-700/40 dark:text-slate-300 dark:border-slate-600';
       default:
-        return 'bg-slate-800 text-slate-300 border-slate-700';
+        return 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
     }
   };
 
   const getSeverityIcon = (severity: string) => {
     switch (severity?.toLowerCase()) {
       case 'critical':
-        return <AlertOctagon className="w-5 h-5 text-rose-400 shrink-0" />;
+        return <AlertOctagon className="w-5 h-5 text-rose-500 dark:text-rose-400 shrink-0" />;
       case 'high':
-        return <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />;
+        return <AlertTriangle className="w-5 h-5 text-amber-500 dark:text-amber-400 shrink-0" />;
       case 'medium':
-        return <AlertTriangle className="w-5 h-5 text-blue-400 shrink-0" />;
+        return <AlertTriangle className="w-5 h-5 text-blue-500 dark:text-blue-400 shrink-0" />;
       default:
-        return <Info className="w-5 h-5 text-slate-400 shrink-0" />;
+        return <Info className="w-5 h-5 text-slate-500 dark:text-slate-400 shrink-0" />;
     }
   };
 
   return (
     <div className="space-y-6">
       {/* Top Controls & Filters */}
-      <div className="flex flex-col gap-4 p-5 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl shadow-xl">
+      <div className="flex flex-col gap-4 p-5 bg-white dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm dark:shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <ShieldAlert className="w-5 h-5 text-rose-400" />
-              <h2 className="text-base font-bold text-white tracking-tight">
+              <ShieldAlert className="w-5 h-5 text-rose-500 dark:text-rose-400" />
+              <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
                 Security & OWASP Top 10 Vulnerability Audit
               </h2>
-              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/30">
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-500/30">
                 {findings.length} Total Findings Listed
               </span>
             </div>
-            <p className="text-sm text-slate-400 mt-1 leading-relaxed">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
               Exhaustive analysis across OWASP Top 10, CWE flaw categories, and enterprise hardening remediations
             </p>
           </div>
@@ -175,7 +175,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
             <button
               type="button"
               onClick={handleToggleAll}
-              className="flex-1 sm:flex-initial px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 transition-colors cursor-pointer min-h-[44px]"
+              className="flex-1 sm:flex-initial px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer min-h-[44px]"
             >
               {allExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               <span>{allExpanded ? 'Collapse All' : 'Expand All'}</span>
@@ -184,18 +184,18 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
             <button
               type="button"
               onClick={handleExportJson}
-              className="flex-1 sm:flex-initial px-3 py-2 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-indigo-500/40 transition-colors cursor-pointer min-h-[44px]"
+              className="flex-1 sm:flex-initial px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-600/30 dark:hover:bg-indigo-600/50 dark:text-indigo-200 dark:border-indigo-500/40 text-xs font-semibold flex items-center justify-center gap-1.5 border transition-colors cursor-pointer min-h-[44px]"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-300" />
               <span>Export Audit ({findings.length})</span>
             </button>
           </div>
         </div>
 
         {/* Filter controls row */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-3 border-t border-slate-800">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
           {/* Severity Filter Tabs */}
-          <div className="flex items-center space-x-1.5 p-1 bg-[#0B0F17] border border-slate-800 rounded-lg overflow-x-auto no-scrollbar">
+          <div className="flex items-center space-x-1.5 p-1 bg-slate-100 dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-lg overflow-x-auto no-scrollbar">
             {['All', 'Critical', 'High', 'Medium', 'Low'].map((sev) => {
               const count =
                 sev === 'All'
@@ -209,12 +209,12 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
                   className={`px-3 py-2 rounded-md text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap cursor-pointer min-h-[40px] ${
                     selectedSeverity === sev
                       ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/30 font-bold'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
                   }`}
                 >
                   <span>{sev}</span>
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                    selectedSeverity === sev ? 'bg-indigo-950 text-indigo-200' : 'bg-slate-800 text-slate-400'
+                    selectedSeverity === sev ? 'bg-indigo-950 text-indigo-200' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400'
                   }`}>
                     {count}
                   </span>
@@ -225,12 +225,12 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
 
           {/* OWASP Category Dropdown */}
           <div className="flex items-center gap-2 w-full md:w-auto">
-            <Filter className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <select
               value={selectedOwasp}
               onChange={(e) => setSelectedOwasp(e.target.value)}
               aria-label="Filter by OWASP Category"
-              className="bg-[#0B0F17] border border-slate-800 text-xs text-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 w-full md:w-auto min-h-[40px]"
+              className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 w-full md:w-auto min-h-[40px]"
             >
               <option value="All">All OWASP Categories ({findings.length})</option>
               {owaspCategories.map(({ category, count }) => (
@@ -246,20 +246,20 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
       {/* Search Bar & Result Counter */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search vulnerabilities by title, OWASP category, CWE, or file path..."
-            className="w-full pl-11 pr-4 py-2.5 bg-slate-900/80 backdrop-blur-md border border-slate-800 focus:border-indigo-500 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none transition-colors shadow-lg"
+            className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-slate-800 focus:border-indigo-500 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none transition-colors shadow-sm dark:shadow-lg"
           />
         </div>
 
-        <div className="text-xs text-slate-400 px-3 py-2 bg-slate-900/60 border border-slate-800 rounded-xl shrink-0 flex items-center gap-2">
-          <Layers className="w-3.5 h-3.5 text-indigo-400" />
+        <div className="text-xs text-slate-600 dark:text-slate-400 px-3 py-2 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl shrink-0 flex items-center gap-2 shadow-sm">
+          <Layers className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
           <span>
-            Listing <strong className="text-white">{filteredFindings.length}</strong> of <strong className="text-slate-300">{findings.length}</strong> findings
+            Listing <strong className="text-slate-900 dark:text-white">{filteredFindings.length}</strong> of <strong className="text-slate-600 dark:text-slate-300">{findings.length}</strong> findings
           </span>
         </div>
       </div>
@@ -298,47 +298,47 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
             return (
               <div
                 key={finding.id}
-                className="bg-slate-900/80 backdrop-blur-md border border-slate-800 hover:border-slate-700 rounded-xl overflow-hidden shadow-xl transition-all duration-200"
+                className="bg-white dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-xl overflow-hidden shadow-sm dark:shadow-xl transition-all duration-200"
               >
                 {/* Finding Header Bar */}
                 <div 
                   onClick={() => toggleCard(finding.id)}
-                  className="p-4 sm:p-5 bg-[#0B0F17] border-b border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-slate-900/60 transition-colors"
+                  className="p-4 sm:p-5 bg-slate-50/80 dark:bg-[#0B0F17] border-b border-slate-200 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-900/60 transition-colors"
                 >
                   <div className="flex items-start sm:items-center gap-3 flex-1">
                     <div className="mt-0.5 sm:mt-0">{getSeverityIcon(finding.severity)}</div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-mono font-bold text-slate-400">
+                        <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
                           [{finding.id}]
                         </span>
-                        <h3 className="text-sm font-bold text-white tracking-tight">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
                           {finding.title}
                         </h3>
                         <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full border ${getSeverityBadge(finding.severity)}`}>
                           {finding.severity}
                         </span>
                         {finding.cwe && (
-                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                             {finding.cwe}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-indigo-400 font-semibold mt-1">
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold mt-1">
                         {finding.owaspCategory}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between sm:justify-end gap-2.5 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/60">
-                    <span className="text-xs font-mono text-slate-400 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-1.5 font-medium truncate max-w-[260px] sm:max-w-xs">
-                      <FileCode2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <div className="flex items-center justify-between sm:justify-end gap-2.5 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200 dark:border-slate-800/60">
+                    <span className="text-xs font-mono text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 flex items-center gap-1.5 font-medium truncate max-w-[260px] sm:max-w-xs">
+                      <FileCode2 className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />
                       <span className="truncate">{finding.filePath}:{finding.lineStart}-{finding.lineEnd}</span>
                     </span>
                     <button
                       type="button"
                       aria-label="Toggle details"
-                      className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
+                      className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
                     >
                       {isCardOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </button>
@@ -347,23 +347,23 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
 
                 {/* Finding Body Details */}
                 {isCardOpen && (
-                  <div className="p-5 sm:p-6 space-y-5">
+                  <div className="p-5 sm:p-6 space-y-5 bg-white dark:bg-transparent">
                     {/* Description & Impact */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="p-4 bg-[#0B0F17] border border-slate-800 rounded-lg space-y-1.5">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block">
+                      <div className="p-4 bg-slate-50 dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-lg space-y-1.5">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
                           Vulnerability Mechanism
                         </span>
-                        <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                        <p className="text-sm text-slate-800 dark:text-slate-300 leading-relaxed font-medium">
                           {finding.description}
                         </p>
                       </div>
 
-                      <div className="p-4 bg-rose-950/20 border border-rose-900/30 rounded-lg space-y-1.5">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-rose-300 block">
+                      <div className="p-4 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/30 rounded-lg space-y-1.5">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-300 block">
                           Adversary Impact & Exploitation Risk
                         </span>
-                        <p className="text-sm text-rose-200/90 leading-relaxed font-medium">
+                        <p className="text-sm text-rose-900 dark:text-rose-200/90 leading-relaxed font-medium">
                           {finding.impact}
                         </p>
                       </div>
@@ -373,15 +373,15 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
                     {finding.vulnerableCode && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-rose-400 flex items-center gap-1.5">
+                          <span className="font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
                             <AlertOctagon className="w-4 h-4" />
                             Vulnerable Code Location
                           </span>
-                          <span className="text-xs font-mono text-slate-400">
+                          <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
                             Lines {finding.lineStart} - {finding.lineEnd}
                           </span>
                         </div>
-                        <div className="p-4 bg-[#0B0F17] border border-rose-900/40 rounded-lg font-mono text-xs text-rose-200 overflow-x-auto selection:bg-rose-500/30">
+                        <div className="p-4 bg-rose-50/70 dark:bg-[#0B0F17] border border-rose-200 dark:border-rose-900/40 rounded-lg font-mono text-xs text-rose-950 dark:text-rose-200 overflow-x-auto selection:bg-rose-500/30">
                           <pre className="whitespace-pre">{finding.vulnerableCode}</pre>
                         </div>
                       </div>
@@ -390,16 +390,16 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
                     {/* Remediation Steps Checklist */}
                     {finding.remediationSteps && finding.remediationSteps.length > 0 && (
                       <div className="space-y-2.5">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-300 block">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">
                           Step-by-Step Remediation Plan:
                         </span>
                         <div className="grid grid-cols-1 gap-2">
                           {finding.remediationSteps.map((step, sIdx) => (
                             <div
                               key={sIdx}
-                              className="flex items-start gap-2.5 p-3 rounded-lg bg-[#0B0F17] border border-slate-800 text-sm text-slate-300 font-medium"
+                              className="flex items-start gap-2.5 p-3 rounded-lg bg-slate-50 dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 text-sm text-slate-800 dark:text-slate-300 font-medium"
                             >
-                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0 mt-0.5" />
                               <span>{step}</span>
                             </div>
                           ))}
@@ -411,24 +411,24 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({ findings, 
                     {finding.remediationCode && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                             <CheckCircle2 className="w-4 h-4" />
                             Recommended Production Hardening
                           </span>
                           <button
                             type="button"
                             onClick={() => handleCopyCode(finding.id, finding.remediationCode)}
-                            className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium flex items-center gap-1.5 transition-colors border border-slate-700 cursor-pointer"
+                            className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:border-slate-700 text-xs font-medium flex items-center gap-1.5 transition-colors border cursor-pointer"
                           >
                             {copiedId === finding.id ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                             ) : (
                               <Copy className="w-3.5 h-3.5" />
                             )}
                             {copiedId === finding.id ? 'Copied' : 'Copy Remediation'}
                           </button>
                         </div>
-                        <div className="p-4 bg-[#0B0F17] border border-emerald-800/40 rounded-lg font-mono text-xs text-emerald-200 overflow-x-auto selection:bg-emerald-500/30">
+                        <div className="p-4 bg-emerald-50/70 dark:bg-[#0B0F17] border border-emerald-200 dark:border-emerald-800/40 rounded-lg font-mono text-xs text-emerald-950 dark:text-emerald-200 overflow-x-auto selection:bg-emerald-500/30">
                           <pre className="whitespace-pre">{finding.remediationCode}</pre>
                         </div>
                       </div>
