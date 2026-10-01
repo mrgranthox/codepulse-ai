@@ -14,6 +14,7 @@
 - [Usage](#usage)
 - [Project Structure](#project-structure)
 - [API Reference](#api-reference)
+- [Audit Report & Technical Debt](#audit-report--technical-debt)
 - [Testing](#testing)
 
 ---
@@ -42,7 +43,7 @@ CodePulse AI is an enterprise-grade codebase inspection and security audit platf
 | --- | --- |
 | **Frontend Framework** | React 19, TypeScript, Vite 6 |
 | **Styling & UI** | Tailwind CSS v4, Lucide React icons, Framer Motion (`motion`) |
-| **Diagrams & Editor** | Mermaid.js 11, Monaco Editor (`@monaco-editor/react`) |
+| **Diagrams & Editor** | Mermaid.js 11, Native Code Editor (custom multi-language syntax highlighter), Monaco Editor (`@monaco-editor/react`) |
 | **Backend Server** | Express 4 (Node.js runtime), `tsx` / `esbuild` |
 | **AI Integration** | Google Gen AI SDK (`@google/genai`) using `gemini-3.7-flash` |
 | **Environment Management**| `dotenv` |
@@ -234,9 +235,11 @@ npm run clean
 ```
 ├── .env.example          # Environment variables template
 ├── bun.lock              # Bun lockfile
+├── docs/
+│   └── AUDIT_REPORT.md   # Comprehensive features, technical debt & placeholder audit
 ├── index.html            # HTML entry point for React single-page app
 ├── metadata.json         # AI Studio application metadata
-├── package.json          # Node.json scripts and dependency declarations
+├── package.json          # Node.js scripts and dependency declarations
 ├── server.ts             # Express server entry point, GitHub fetcher & AI audit API
 ├── tsconfig.json         # TypeScript compiler configuration
 ├── vite.config.ts        # Vite configuration with React & Tailwind CSS plugins
@@ -250,21 +253,35 @@ npm run clean
     │   ├── ArchitectureVisualizer.tsx # Interactive Mermaid diagrams & C4 views
     │   ├── AuditHistoryDrawer.tsx     # Session history drawer and loader
     │   ├── C4SpecModal.tsx            # C4 Engineering Specification modal
+    │   ├── ClearanceConsentModal.tsx  # In-memory footprint & pruning consent modal
+    │   ├── CodePulseLogo.tsx          # Brand identity SVG logo component
     │   ├── DiffViewer.tsx             # Code diff viewer powered by Monaco Editor
+    │   ├── EnterpriseFooter.tsx       # Enterprise compliance attestation footer
+    │   ├── EnterpriseGovernanceModals.tsx # Privacy, Terms, and Merkle verification
+    │   ├── ErrorBoundary.tsx          # Component tree error boundary
     │   ├── ExecutionScanner.tsx       # Real-time multi-pass scanning visualizer
     │   ├── ExportReportView.tsx       # Report export and summary generator
     │   ├── Header.tsx                 # Navigation bar and header actions
+    │   ├── MemoryPerformanceOverlay.tsx # D3.js heap telemetry & lifecycle overlay
     │   ├── MermaidRenderer.tsx        # Dynamic Mermaid.js graph renderer
+    │   ├── NativeCodeEditor.tsx       # Custom syntax-highlighted code & diff editor
     │   ├── OverviewDashboard.tsx      # System health scores & key takeaways
+    │   ├── PaginationControls.tsx     # LCS pagination & jump-to navigation
     │   ├── RefactoringView.tsx        # Code smell findings & refactoring diffs
     │   ├── SecurityAuditView.tsx      # OWASP security findings & remediations
+    │   ├── SettingsModal.tsx          # Engine, theme, and framework preferences
     │   ├── StorylineFooter.tsx        # Step-by-step audit workflow footer
     │   ├── StorylineStepper.tsx       # Audit workflow step indicator
     │   └── UploadSection.tsx          # File upload, GitHub URL & preset selection
+    ├── context/
+    │   └── ThemeContext.tsx # Dark, Light, and System theme provider
     ├── data/
     │   └── presets.ts    # Code presets and initial sample audit dataset
     └── utils/
-        └── diffUtils.ts  # Utility functions for diff formatting
+        ├── codeDistiller.ts   # AST extraction, dependency graphs & domain grouping
+        ├── cweTop25.ts        # MITRE CWE Top 25 (2025) taxonomy mappings
+        ├── diffUtils.ts       # Longest Common Subsequence (LCS) diff & patcher
+        └── memoryOptimizer.ts # Browser heap measurement & memory pruning
 ```
 
 ---
@@ -313,6 +330,19 @@ npm run clean
   }
   ```
 - **Description**: Conducts multi-pass security, architecture, and code smell analysis using Gemini `gemini-3.7-flash` or the dynamic local heuristic fallback engine. Returns structured audit report containing scores, security findings, code smells, AST metrics, and Mermaid diagram definition.
+
+---
+
+## Audit Report & Technical Debt
+
+A complete audit of all 28 source files (~13,000+ LOC) has been performed and documented in [`docs/AUDIT_REPORT.md`](docs/AUDIT_REPORT.md).
+
+Key audit highlights include:
+- **Verified Production Capabilities**: Multi-pass Gemini AI audit pipeline with 4-model fallback cascade, Map-Reduce distributed domain analysis for >40 files, local heuristic engine with 25 security patterns and 12+ code smells, structural AST distillation, LCS side-by-side diffing, and JWT/RBAC security.
+- **Identified Gaps & Technical Debt**: In-memory compliance ledger/WAL state, simulated scanning progress in `ExecutionScanner.tsx`, synthetic D3.js memory metrics in `MemoryPerformanceOverlay.tsx`, and unlinked security framework checkboxes in `SettingsModal.tsx`.
+- **Remediation Roadmap**: A 3-phase remediation plan covering high-priority UI disclosure fixes, engine pipeline synchronization, and persistent infrastructure hardening.
+
+For the exhaustive breakdown of features, line-by-line placeholder references, and debt inventory, see [**docs/AUDIT_REPORT.md**](docs/AUDIT_REPORT.md).
 
 ---
 
