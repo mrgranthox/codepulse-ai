@@ -27,6 +27,7 @@ interface HeaderProps {
   onRunAudit: () => void;
   onNewAudit: () => void;
   hasFiles: boolean;
+  filesCount?: number;
   onOpenHistory: () => void;
   historyCount: number;
   onOpenSettings?: () => void;
@@ -41,6 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
   onRunAudit,
   onNewAudit,
   hasFiles,
+  filesCount,
   onOpenHistory,
   historyCount,
   onOpenSettings,
@@ -202,7 +204,7 @@ export const Header: React.FC<HeaderProps> = ({
                 title="Re-run neural AST audit on current files"
               >
                 <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                <span>{isLoading ? 'Auditing...' : 'Re-Audit'}</span>
+                <span>{isLoading ? `Auditing (${filesCount || 1})...` : 'Re-Audit'}</span>
               </button>
             )}
 

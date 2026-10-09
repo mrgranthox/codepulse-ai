@@ -533,7 +533,9 @@ try {
     estimatedTokenCount: 680,
     astReductionPercentage: 64,
     languageBreakdown: {
-      'TypeScript': 100
+      'TypeScript': 76,
+      'JSON': 14,
+      'Test / Spec': 10
     }
   }
 };

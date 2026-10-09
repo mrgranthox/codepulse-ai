@@ -222,6 +222,8 @@ function AppContent() {
     // If an audit already exists, store it as the previous comparison baseline
     if (auditResult) {
       setPreviousAuditResult(auditResult);
+      // Clear the current auditResult so the UI immediately reflects the new files being scanned
+      setAuditResult(null);
     }
 
     try {
@@ -284,6 +286,8 @@ function AppContent() {
 
     if (auditResult) {
       setPreviousAuditResult(auditResult);
+      // Clear the current auditResult so the UI immediately reflects the new incoming repo scan
+      setAuditResult(null);
     }
 
     try {
@@ -354,6 +358,7 @@ function AppContent() {
         onRunAudit={handleRunAudit}
         onNewAudit={() => setActiveTab('upload')}
         hasFiles={files.length > 0}
+        filesCount={files.length}
         onOpenHistory={() => setIsHistoryOpen(true)}
         historyCount={auditHistory.length}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -428,6 +433,8 @@ function AppContent() {
           <ExecutionScanner
             files={files}
             repoName={repoName}
+            isAuditComplete={!isLoading && auditResult !== null}
+            auditResult={auditResult}
           />
         )}
 
@@ -438,6 +445,8 @@ function AppContent() {
             setActiveTab={setActiveTab}
             onReAudit={handleRunAudit}
             isLoading={isLoading}
+            currentFilesCount={files.length}
+            currentRepoName={repoName}
             onOpenHistory={() => setIsHistoryOpen(true)}
             onOpenGovernance={handleOpenGovernance}
             onOpenMemoryConsent={handleOpenMemoryConsent}

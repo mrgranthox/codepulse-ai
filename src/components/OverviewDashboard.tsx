@@ -25,7 +25,8 @@ import {
   GitCompare,
   Cpu,
   HardDrive,
-  RotateCw
+  RotateCw,
+  Code2
 } from 'lucide-react';
 import { AuditResult, ActiveTab } from '../types';
 import { StorylineFooter } from './StorylineFooter';
@@ -36,6 +37,8 @@ interface OverviewDashboardProps {
   setActiveTab: (tab: ActiveTab) => void;
   onReAudit: () => void;
   isLoading: boolean;
+  currentFilesCount?: number;
+  currentRepoName?: string;
   onOpenHistory?: () => void;
   onOpenGovernance?: (tab?: 'about' | 'privacy' | 'terms' | 'verify') => void;
   onOpenMemoryConsent?: () => void;
@@ -43,12 +46,117 @@ interface OverviewDashboardProps {
   isMemoryOptimized?: boolean;
 }
 
+// Language color mappings & badges for robust UI distinction
+const getLanguageColorStyle = (langName: string) => {
+  const key = langName.toLowerCase().trim();
+  if (key.includes('typescript') || key === 'ts' || key === 'tsx') {
+    return {
+      name: 'TypeScript',
+      bgClass: 'bg-[#3178C6]',
+      textClass: 'text-[#3178C6] dark:text-[#60a5fa]',
+      badgeClass: 'bg-[#3178C6]/10 text-[#3178C6] border-[#3178C6]/30 dark:bg-[#3178C6]/20 dark:text-[#93c5fd] dark:border-[#3178C6]/40',
+      dotClass: 'bg-[#3178C6]',
+      indicatorBorder: 'border-[#3178C6]'
+    };
+  }
+  if (key.includes('json')) {
+    return {
+      name: 'JSON',
+      bgClass: 'bg-amber-400 dark:bg-amber-400',
+      textClass: 'text-amber-600 dark:text-amber-400',
+      badgeClass: 'bg-amber-500/10 text-amber-600 border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40',
+      dotClass: 'bg-amber-400',
+      indicatorBorder: 'border-amber-400'
+    };
+  }
+  if (key.includes('test') || key.includes('spec')) {
+    return {
+      name: langName,
+      bgClass: 'bg-emerald-500',
+      textClass: 'text-emerald-600 dark:text-emerald-400',
+      badgeClass: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40',
+      dotClass: 'bg-emerald-500',
+      indicatorBorder: 'border-emerald-500'
+    };
+  }
+  if (key.includes('javascript') || key === 'js' || key === 'jsx') {
+    return {
+      name: 'JavaScript',
+      bgClass: 'bg-yellow-400',
+      textClass: 'text-yellow-600 dark:text-yellow-400',
+      badgeClass: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30 dark:bg-yellow-500/20 dark:text-yellow-300 dark:border-yellow-500/40',
+      dotClass: 'bg-yellow-400',
+      indicatorBorder: 'border-yellow-400'
+    };
+  }
+  if (key.includes('python') || key === 'py') {
+    return {
+      name: 'Python',
+      bgClass: 'bg-sky-500',
+      textClass: 'text-sky-600 dark:text-sky-400',
+      badgeClass: 'bg-sky-500/10 text-sky-600 border-sky-500/30 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-500/40',
+      dotClass: 'bg-sky-500',
+      indicatorBorder: 'border-sky-500'
+    };
+  }
+  if (key.includes('go')) {
+    return {
+      name: 'Go',
+      bgClass: 'bg-cyan-500',
+      textClass: 'text-cyan-600 dark:text-cyan-400',
+      badgeClass: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/30 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/40',
+      dotClass: 'bg-cyan-500',
+      indicatorBorder: 'border-cyan-500'
+    };
+  }
+  if (key.includes('rust') || key === 'rs') {
+    return {
+      name: 'Rust',
+      bgClass: 'bg-orange-500',
+      textClass: 'text-orange-600 dark:text-orange-400',
+      badgeClass: 'bg-orange-500/10 text-orange-600 border-orange-500/30 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/40',
+      dotClass: 'bg-orange-500',
+      indicatorBorder: 'border-orange-500'
+    };
+  }
+  if (key.includes('sql')) {
+    return {
+      name: 'SQL',
+      bgClass: 'bg-purple-500',
+      textClass: 'text-purple-600 dark:text-purple-400',
+      badgeClass: 'bg-purple-500/10 text-purple-600 border-purple-500/30 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/40',
+      dotClass: 'bg-purple-500',
+      indicatorBorder: 'border-purple-500'
+    };
+  }
+  if (key.includes('yaml') || key.includes('yml')) {
+    return {
+      name: 'YAML',
+      bgClass: 'bg-rose-500',
+      textClass: 'text-rose-600 dark:text-rose-400',
+      badgeClass: 'bg-rose-500/10 text-rose-600 border-rose-500/30 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/40',
+      dotClass: 'bg-rose-500',
+      indicatorBorder: 'border-rose-500'
+    };
+  }
+  return {
+    name: langName,
+    bgClass: 'bg-indigo-500',
+    textClass: 'text-indigo-600 dark:text-indigo-400',
+    badgeClass: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/40',
+    dotClass: 'bg-indigo-500',
+    indicatorBorder: 'border-indigo-500'
+  };
+};
+
 export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   auditResult,
   previousAuditResult,
   setActiveTab,
   onReAudit,
   isLoading,
+  currentFilesCount,
+  currentRepoName,
   onOpenHistory,
   onOpenGovernance,
   onOpenMemoryConsent,
@@ -56,6 +164,29 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   isMemoryOptimized = false
 }) => {
   if (!auditResult) {
+    if (isLoading) {
+      return (
+        <div className="p-8 sm:p-12 text-center bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl shadow-xl space-y-4">
+          <div className="w-12 h-12 rounded-xl bg-indigo-950/80 border border-indigo-500/40 flex items-center justify-center mx-auto text-indigo-400">
+            <RotateCw className="w-6 h-6 animate-spin text-indigo-400" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-white tracking-tight">Audit Scan in Progress</h3>
+            <p className="text-sm text-slate-300 mt-1 max-w-md mx-auto leading-relaxed">
+              Scanning <span className="text-indigo-400 font-mono font-bold">{currentFilesCount || 1}</span> {currentFilesCount === 1 ? 'file' : 'files'} at the moment for {currentRepoName || 'codebase'}.
+            </p>
+          </div>
+          <button
+            onClick={() => setActiveTab('execution')}
+            className="mt-2 px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/20 border border-indigo-400/30 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer min-h-[44px] inline-flex items-center gap-2"
+          >
+            <Activity className="w-4 h-4" />
+            <span>View Live Execution Stream</span>
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="p-8 sm:p-12 text-center bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl shadow-xl">
         <Activity className="w-12 h-12 text-slate-600 mx-auto mb-3" />
@@ -76,6 +207,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   const { summary, architecture, securityAudit, codeSmells, astMetrics } = auditResult;
 
   // Comparison metrics calculation against previous audit
+  const activeFilesCount = isLoading ? (currentFilesCount ?? auditResult.scannedFilesCount) : auditResult.scannedFilesCount;
   const prevFiles = previousAuditResult?.scannedFilesCount || 0;
   const currFiles = auditResult.scannedFilesCount || 0;
   const filesDelta = prevFiles > 0 ? currFiles - prevFiles : 0;
@@ -116,15 +248,34 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight truncate max-w-[240px] sm:max-w-md">
-                {auditResult.repoName || 'Codebase Audit Report'}
+                {currentRepoName || auditResult.repoName || 'Codebase Audit Report'}
               </h2>
-              <span className="text-[10px] uppercase font-semibold tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-mono border shrink-0">
-                {auditResult.scannedFilesCount} Files Scanned
-              </span>
-              <span className="relative flex h-2 w-2 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
+              {isLoading ? (
+                <span className="text-[10px] uppercase font-semibold tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-600/50 font-mono border shrink-0 flex items-center gap-1.5 animate-pulse">
+                  <RotateCw className="w-3 h-3 animate-spin text-indigo-600 dark:text-indigo-400" />
+                  Scanning {activeFilesCount} {activeFilesCount === 1 ? 'File' : 'Files'}...
+                </span>
+              ) : (
+                <span className="text-[10px] uppercase font-semibold tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-mono border shrink-0 flex items-center gap-1">
+                  {auditResult.scannedFilesCount} {auditResult.scannedFilesCount === 1 ? 'File' : 'Files'} Scanned
+                  {currentFilesCount !== undefined && currentFilesCount !== auditResult.scannedFilesCount && (
+                    <span className="text-indigo-600 dark:text-indigo-400 font-normal">
+                      ({currentFilesCount} staged)
+                    </span>
+                  )}
+                </span>
+              )}
+              {isLoading ? (
+                <span className="relative flex h-2.5 w-2.5 shrink-0" title={`Audit scan in progress (${activeFilesCount} files being scanned at the moment)`}>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-80"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500 shadow-sm shadow-indigo-500/50"></span>
+                </span>
+              ) : (
+                <span className="relative flex h-2 w-2 shrink-0" title={`${auditResult.scannedFilesCount} files scanned and verified`}>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2.5 mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium flex-wrap">
               <span className="flex items-center gap-1.5">
@@ -279,8 +430,15 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           <div className="p-3.5 bg-slate-50 dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-lg space-y-1">
             <span className="text-[11px] font-semibold uppercase text-slate-600 dark:text-slate-400 block">Files Scanned</span>
             <div className="flex items-baseline justify-between">
-              <span className="text-lg font-bold text-slate-900 dark:text-white font-mono">{currFiles} files</span>
-              {previousAuditResult && (
+              {isLoading ? (
+                <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400 font-mono flex items-center gap-1.5 animate-pulse">
+                  <RotateCw className="w-4 h-4 animate-spin shrink-0" />
+                  {activeFilesCount} {activeFilesCount === 1 ? 'file' : 'files'} (scanning)
+                </span>
+              ) : (
+                <span className="text-lg font-bold text-slate-900 dark:text-white font-mono">{currFiles} files</span>
+              )}
+              {!isLoading && previousAuditResult && (
                 <span className={`text-xs font-mono font-semibold flex items-center gap-0.5 ${
                   filesDelta > 0 ? 'text-emerald-600 dark:text-emerald-400' : filesDelta < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'
                 }`}>
@@ -290,7 +448,9 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               )}
             </div>
             <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-              {previousAuditResult ? `Prev: ${prevFiles} files scanned` : 'Baseline established'}
+              {isLoading
+                ? `Actively auditing ${activeFilesCount} file${activeFilesCount === 1 ? '' : 's'} at the moment...`
+                : previousAuditResult ? `Prev: ${prevFiles} files scanned` : 'Baseline established'}
             </span>
           </div>
 
@@ -351,30 +511,47 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 
         {/* Dynamic Language Composition Breakdown Bar */}
         {astMetrics.languageBreakdown && Object.keys(astMetrics.languageBreakdown).length > 0 && (
-          <div className="pt-2 border-t border-slate-800/80 space-y-2">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="font-semibold uppercase tracking-wider text-[10px]">Audited Language Breakdown</span>
-              <span className="font-mono text-[11px] text-slate-400">
-                {Object.entries(astMetrics.languageBreakdown).map(([lang, pct]) => `${lang}: ${pct}%`).join(' • ')}
-              </span>
+          <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                <Code2 className="w-3.5 h-3.5 text-indigo-500" />
+                <span className="font-semibold uppercase tracking-wider text-[11px]">Audited Language Breakdown</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {Object.entries(astMetrics.languageBreakdown).map(([lang, pct]) => {
+                  const style = getLanguageColorStyle(lang);
+                  return (
+                    <div
+                      key={lang}
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-medium transition-all ${style.badgeClass}`}
+                      title={`${lang}: ${pct}% of audited codebase`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${style.dotClass} shadow-xs shrink-0`} />
+                      <span className="font-semibold">{lang}</span>
+                      <span className="font-mono font-bold opacity-90">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden flex border border-slate-800">
-              {Object.entries(astMetrics.languageBreakdown).map(([lang, pct], idx) => {
-                const colors = [
-                  'bg-indigo-500',
-                  'bg-emerald-500',
-                  'bg-amber-500',
-                  'bg-cyan-500',
-                  'bg-purple-500',
-                  'bg-rose-500'
-                ];
+
+            {/* Segmented Multi-Color Progress Bar */}
+            <div className="h-3.5 w-full bg-slate-100 dark:bg-slate-950 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-800 p-0.5 gap-0.5 shadow-inner">
+              {Object.entries(astMetrics.languageBreakdown).map(([lang, pct]) => {
+                const style = getLanguageColorStyle(lang);
                 return (
                   <div
                     key={lang}
-                    style={{ width: `${pct}%` }}
-                    className={`h-full ${colors[idx % colors.length]}`}
-                    title={`${lang}: ${pct}%`}
-                  />
+                    style={{ width: `${Math.max(pct, 2)}%` }}
+                    className={`h-full rounded-sm transition-all duration-300 hover:opacity-90 hover:brightness-110 relative flex items-center justify-center overflow-hidden cursor-pointer group ${style.bgClass}`}
+                    title={`${lang}: ${pct}% of audited codebase`}
+                  >
+                    {pct >= 14 && (
+                      <span className="text-[9px] font-mono font-bold text-white px-1 truncate select-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
+                        {lang} {pct}%
+                      </span>
+                    )}
+                  </div>
                 );
               })}
             </div>

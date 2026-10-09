@@ -2579,8 +2579,23 @@ ${compLinks}
 
     const langCounts: Record<string, number> = {};
     files.forEach((f: any) => {
-      const lang = (f.language || detectLanguage(f.path || f.name) || 'typescript').toLowerCase();
-      const displayLang = lang.charAt(0).toUpperCase() + lang.slice(1);
+      const lowerPath = (f.path || f.name || '').toLowerCase();
+      let lang = '';
+      if (lowerPath.includes('.test.') || lowerPath.includes('.spec.') || lowerPath.includes('/tests/') || lowerPath.includes('__tests__/')) {
+        lang = 'test';
+      } else {
+        lang = (f.language || detectLanguage(f.path || f.name) || 'typescript').toLowerCase();
+      }
+      
+      let displayLang = lang.charAt(0).toUpperCase() + lang.slice(1);
+      if (lang === 'typescript' || lang === 'ts' || lang === 'tsx') displayLang = 'TypeScript';
+      else if (lang === 'javascript' || lang === 'js' || lang === 'jsx') displayLang = 'JavaScript';
+      else if (lang === 'json') displayLang = 'JSON';
+      else if (lang === 'test') displayLang = 'Test / Spec';
+      else if (lang === 'c_cpp') displayLang = 'C/C++';
+      else if (lang === 'sql') displayLang = 'SQL';
+      else if (lang === 'yaml' || lang === 'yml') displayLang = 'YAML';
+      
       langCounts[displayLang] = (langCounts[displayLang] || 0) + 1;
     });
     const languageBreakdown: Record<string, number> = {};
