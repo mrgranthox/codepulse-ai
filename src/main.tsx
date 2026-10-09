@@ -14,8 +14,11 @@ if (typeof window !== 'undefined') {
       lowerMsg.includes('script error') ||
       lowerMsg.includes('cannot set property fetch') ||
       lowerMsg.includes('fetch of #<window>') ||
+      lowerMsg.includes('websocket') ||
+      lowerMsg.includes('ws closed') ||
       lowerFile.includes('chrome-extension://') ||
-      lowerFile.includes('moz-extension://')
+      lowerFile.includes('moz-extension://') ||
+      lowerFile.includes('@vite/client')
     );
   };
 

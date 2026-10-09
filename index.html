@@ -35,13 +35,33 @@
           // Ignore if property descriptor cannot be defined
         }
 
-        // Intercept browser extension script errors early
+        // Intercept browser extension script errors and vite websocket disconnects early
+        function isIgnorableError(msg, filename) {
+          if (!msg) return false;
+          var m = (msg + '').toLowerCase();
+          var f = (filename || '').toLowerCase();
+          return (
+            m.indexOf('cannot set property fetch') !== -1 ||
+            m.indexOf('fetch of #<window>') !== -1 ||
+            m.indexOf('websocket') !== -1 ||
+            m.indexOf('ws closed') !== -1 ||
+            f.indexOf('chrome-extension://') !== -1 ||
+            f.indexOf('moz-extension://') !== -1 ||
+            f.indexOf('@vite/client') !== -1
+          );
+        }
+
         window.addEventListener('error', function(event) {
-          if (event && event.message && (
-            event.message.indexOf('cannot set property fetch') !== -1 ||
-            event.message.indexOf('fetch of #<Window>') !== -1 ||
-            (event.filename && (event.filename.indexOf('chrome-extension://') !== -1 || event.filename.indexOf('moz-extension://') !== -1))
-          )) {
+          if (event && isIgnorableError(event.message, event.filename)) {
+            event.preventDefault();
+            event.stopPropagation();
+            return true;
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(event) {
+          var reason = (event && (event.reason ? (event.reason.message || event.reason) : '')) + '';
+          if (isIgnorableError(reason, '')) {
             event.preventDefault();
             event.stopPropagation();
             return true;
