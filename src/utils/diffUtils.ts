@@ -192,6 +192,7 @@ export function generateFullRefactoredCode(
 
 /**
  * Fast Longest Common Subsequence (LCS) line diff algorithm for side-by-side view.
+ * Enhanced with common prefix/suffix trimming and O(N*M) memory protection guard.
  */
 export function computeLineDiff(originalText: string, refactoredText: string): {
   diffLines: DiffLine[];
@@ -203,39 +204,116 @@ export function computeLineDiff(originalText: string, refactoredText: string): {
   const n = origLines.length;
   const m = refactLines.length;
 
-  // Build LCS matrix
-  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  // 1. Fast match if both texts are identical
+  if (originalText === refactoredText) {
+    return {
+      diffLines: origLines.map((line, idx) => ({
+        type: DiffLineType.Unchanged,
+        leftLineNum: idx + 1,
+        rightLineNum: idx + 1,
+        leftContent: line,
+        rightContent: line
+      })),
+      stats: { additions: 0, deletions: 0, modifications: 0, totalChanges: 0 }
+    };
+  }
 
-  for (let i = 1; i <= n; i++) {
-    for (let j = 1; j <= m; j++) {
-      if (origLines[i - 1] === refactLines[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
+  // 2. Strip common prefix to drastically minimize matrix dimensions
+  let prefix = 0;
+  while (prefix < n && prefix < m && origLines[prefix] === refactLines[prefix]) {
+    prefix++;
+  }
+
+  // 3. Strip common suffix
+  let suffix = 0;
+  while (
+    suffix < (n - prefix) &&
+    suffix < (m - prefix) &&
+    origLines[n - 1 - suffix] === refactLines[m - 1 - suffix]
+  ) {
+    suffix++;
+  }
+
+  const midOrig = origLines.slice(prefix, n - suffix);
+  const midRefact = refactLines.slice(prefix, m - suffix);
+  const midN = midOrig.length;
+  const midM = midRefact.length;
+
+  let midRawDiff: Array<{ type: 'same' | 'del' | 'add'; origIdx?: number; refactIdx?: number }> = [];
+
+  // Memory & CPU Protection Guard: If middle slice matrix exceeds 1,000,000 cells,
+  // fallback to linear greedy comparison to prevent browser OOM lockups.
+  if (midN * midM > 1000000) {
+    let p = 0;
+    let q = 0;
+    while (p < midN || q < midM) {
+      if (p < midN && q < midM && midOrig[p] === midRefact[q]) {
+        midRawDiff.push({ type: 'same', origIdx: prefix + p, refactIdx: prefix + q });
+        p++;
+        q++;
+      } else if (p < midN && q < midM) {
+        midRawDiff.push({ type: 'del', origIdx: prefix + p });
+        midRawDiff.push({ type: 'add', refactIdx: prefix + q });
+        p++;
+        q++;
+      } else if (p < midN) {
+        midRawDiff.push({ type: 'del', origIdx: prefix + p });
+        p++;
       } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        midRawDiff.push({ type: 'add', refactIdx: prefix + q });
+        q++;
       }
     }
-  }
+  } else if (midN > 0 || midM > 0) {
+    // Standard LCS on trimmed middle slice
+    const dp: number[][] = Array.from({ length: midN + 1 }, () => new Array(midM + 1).fill(0));
 
-  // Backtrack to assemble diff entries
-  const rawDiff: Array<{ type: 'same' | 'del' | 'add'; origIdx?: number; refactIdx?: number }> = [];
-  let i = n;
-  let j = m;
-
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && origLines[i - 1] === refactLines[j - 1]) {
-      rawDiff.push({ type: 'same', origIdx: i - 1, refactIdx: j - 1 });
-      i--;
-      j--;
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      rawDiff.push({ type: 'add', refactIdx: j - 1 });
-      j--;
-    } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
-      rawDiff.push({ type: 'del', origIdx: i - 1 });
-      i--;
+    for (let i = 1; i <= midN; i++) {
+      for (let j = 1; j <= midM; j++) {
+        if (midOrig[i - 1] === midRefact[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1] + 1;
+        } else {
+          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
+      }
     }
+
+    const sliceDiff: Array<{ type: 'same' | 'del' | 'add'; origIdx?: number; refactIdx?: number }> = [];
+    let i = midN;
+    let j = midM;
+
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && midOrig[i - 1] === midRefact[j - 1]) {
+        sliceDiff.push({ type: 'same', origIdx: prefix + i - 1, refactIdx: prefix + j - 1 });
+        i--;
+        j--;
+      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+        sliceDiff.push({ type: 'add', refactIdx: prefix + j - 1 });
+        j--;
+      } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
+        sliceDiff.push({ type: 'del', origIdx: prefix + i - 1 });
+        i--;
+      }
+    }
+    midRawDiff = sliceDiff.reverse();
   }
 
-  rawDiff.reverse();
+  // Combine prefix + mid + suffix into full rawDiff sequence
+  const rawDiff: Array<{ type: 'same' | 'del' | 'add'; origIdx?: number; refactIdx?: number }> = [];
+
+  for (let k = 0; k < prefix; k++) {
+    rawDiff.push({ type: 'same', origIdx: k, refactIdx: k });
+  }
+
+  for (const item of midRawDiff) {
+    rawDiff.push(item);
+  }
+
+  for (let k = 0; k < suffix; k++) {
+    const oIdx = n - suffix + k;
+    const rIdx = m - suffix + k;
+    rawDiff.push({ type: 'same', origIdx: oIdx, refactIdx: rIdx });
+  }
 
   // Consolidate into paired side-by-side rows
   const diffLines: DiffLine[] = [];

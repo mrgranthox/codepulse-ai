@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { UploadSection } from './components/UploadSection';
 import { OverviewDashboard } from './components/OverviewDashboard';
@@ -16,8 +16,10 @@ import { StorylineStepper } from './components/StorylineStepper';
 import { AuditHistoryDrawer } from './components/AuditHistoryDrawer';
 import { EnterpriseGovernanceModals, GovernanceModalTab } from './components/EnterpriseGovernanceModals';
 import { ClearanceConsentModal } from './components/ClearanceConsentModal';
-import { SettingsModal } from './components/SettingsModal';
+import { SettingsModal, FrameworkPreferences } from './components/SettingsModal';
 import { MemoryPerformanceOverlay } from './components/MemoryPerformanceOverlay';
+import { C4SpecModal } from './components/C4SpecModal';
+import { EnterpriseFooter } from './components/EnterpriseFooter';
 import { ThemeProvider } from './context/ThemeContext';
 import { ActiveTab, CodeFile, AuditResult, AuditHistoryItem } from './types';
 import { AlertCircle, CheckCircle2, History, Cpu, Sparkles, ShieldCheck, Lock } from 'lucide-react';
@@ -44,10 +46,37 @@ function AppContent() {
   const [governanceTab, setGovernanceTab] = useState<GovernanceModalTab>('about');
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isC4SpecOpen, setIsC4SpecOpen] = useState<boolean>(false);
   const [isMemoryOverlayOpen, setIsMemoryOverlayOpen] = useState<boolean>(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined);
   const [isMemoryOptimized, setIsMemoryOptimized] = useState<boolean>(false);
   const [sessionToken, setSessionToken] = useState<string>(() => sessionStorage.getItem('codepulse_session_token') || '');
+  const auditAbortRef = useRef<AbortController | null>(null);
+
+  const handleCancelAudit = () => {
+    if (auditAbortRef.current) {
+      auditAbortRef.current.abort();
+      auditAbortRef.current = null;
+    }
+    setIsLoading(false);
+    setActiveTab('upload');
+    setSuccessToast('Audit scan cancelled by user.');
+    setTimeout(() => setSuccessToast(null), 3000);
+  };
+
+  const [frameworkPreferences, setFrameworkPreferences] = useState<FrameworkPreferences>(() => {
+    try {
+      const saved = localStorage.getItem('codepulse_framework_prefs');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Failed to parse framework preferences from localStorage:', e);
+    }
+    return {
+      owaspEnabled: true,
+      cweEnabled: true,
+      soc2Enabled: true
+    };
+  });
 
   useEffect(() => {
     async function initSessionAuth() {
@@ -226,6 +255,12 @@ function AppContent() {
       setAuditResult(null);
     }
 
+    const abortCtrl = new AbortController();
+    auditAbortRef.current = abortCtrl;
+    const timeoutTimer = setTimeout(() => {
+      abortCtrl.abort(new Error('Audit timed out after 3 minutes'));
+    }, 180000);
+
     try {
       const response = await fetch('/api/audit', {
         method: 'POST',
@@ -233,13 +268,17 @@ function AppContent() {
           'Content-Type': 'application/json',
           ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {})
         },
-        signal: AbortSignal.timeout(180000), // 3-minute timeout for deep multi-vector AST & AI synthesis
+        signal: abortCtrl.signal,
         body: JSON.stringify({
           files,
           repoName: repoName || 'Custom Codebase',
-          customRules
+          customRules,
+          activeFrameworks: frameworkPreferences
         }),
       });
+
+      clearTimeout(timeoutTimer);
+      auditAbortRef.current = null;
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -261,20 +300,20 @@ function AppContent() {
         setTimeout(() => setSuccessToast(null), 4500);
       }, 800);
     } catch (err: any) {
+      clearTimeout(timeoutTimer);
+      auditAbortRef.current = null;
       console.error('Audit execution error:', err);
       setIsLoading(false);
       setActiveTab('upload');
-      const isTimeout =
-        err?.name === 'TimeoutError' ||
-        err?.name === 'AbortError' ||
-        err?.message?.toLowerCase().includes('timed out') ||
-        err?.message?.toLowerCase().includes('aborted');
 
-      const message = isTimeout
-        ? 'Codebase audit timed out while analyzing files. For large codebases, consider auditing critical subdirectories or modules.'
-        : err?.message || 'Failed to complete codebase audit.';
+      if (abortCtrl.signal.aborted) {
+        if (err?.message?.includes('timed out')) {
+          setErrorMessage('Codebase audit timed out while analyzing files. For large codebases, consider auditing critical subdirectories or modules.');
+        }
+        return;
+      }
 
-      setErrorMessage(message);
+      setErrorMessage(err?.message || 'Failed to complete codebase audit.');
     }
   };
 
@@ -363,6 +402,7 @@ function AppContent() {
         historyCount={auditHistory.length}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenMemory={() => setIsMemoryOverlayOpen(true)}
+        onOpenC4Spec={() => setIsC4SpecOpen(true)}
       />
 
       {/* Toast Notifications */}
@@ -435,6 +475,7 @@ function AppContent() {
             repoName={repoName}
             isAuditComplete={!isLoading && auditResult !== null}
             auditResult={auditResult}
+            onCancel={handleCancelAudit}
           />
         )}
 
@@ -494,6 +535,13 @@ function AppContent() {
             onNavigate={setActiveTab}
           />
         )}
+
+        {activeTab === 'c4-spec' && (
+          <C4SpecModal
+            isOpen={true}
+            onClose={() => setActiveTab(auditResult ? 'overview' : 'upload')}
+          />
+        )}
       </main>
 
       {/* Audit History Drawer */}
@@ -541,66 +589,28 @@ function AppContent() {
         onClose={() => setIsSettingsOpen(false)}
         onClearHistory={handleClearAllHistory}
         historyCount={auditHistory.length}
+        frameworkPreferences={frameworkPreferences}
+        onUpdateFrameworkPreferences={(prefs) => {
+          setFrameworkPreferences(prefs);
+          try {
+            localStorage.setItem('codepulse_framework_prefs', JSON.stringify(prefs));
+          } catch (e) {
+            console.warn('Failed to persist framework preferences:', e);
+          }
+        }}
+      />
+
+      {/* Enterprise C4 Architecture Specification & Cost Simulator */}
+      <C4SpecModal
+        isOpen={isC4SpecOpen}
+        onClose={() => setIsC4SpecOpen(false)}
       />
 
       {/* Enterprise Governance Footer */}
-      <footer className="border-t border-slate-800/80 dark:border-slate-800/80 light:border-slate-200 bg-[#090D16] dark:bg-[#090D16] light:bg-slate-100 py-4 mt-auto">
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 flex flex-col md:flex-row items-center justify-between gap-3 text-[11px] text-slate-400">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700">CodePulse Enterprise AI</span>
-            <span>•</span>
-            <span>Zero-Trust AST Engine & Universal Code Auditor</span>
-          </div>
-
-          <div className="flex items-center gap-4 flex-wrap justify-center font-medium">
-            <button
-              type="button"
-              onClick={() => handleOpenGovernance('about')}
-              className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
-            >
-              About & Architecture
-            </button>
-            <span>•</span>
-            <button
-              type="button"
-              onClick={() => handleOpenGovernance('privacy')}
-              className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
-            >
-              Privacy Policy & Zero Retention
-            </button>
-            <span>•</span>
-            <button
-              type="button"
-              onClick={() => handleOpenGovernance('terms')}
-              className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
-            >
-              Terms & SLA
-            </button>
-            <span>•</span>
-            <button
-              type="button"
-              onClick={() => handleOpenGovernance('verify')}
-              className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors cursor-pointer font-semibold"
-            >
-              <Lock className="w-3 h-3" />
-              <span>Verify Integrity (SHA-256)</span>
-            </button>
-            <span>•</span>
-            <button
-              type="button"
-              onClick={() => setIsSettingsOpen(true)}
-              className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
-            >
-              Settings
-            </button>
-          </div>
-
-          <div className="text-[10px] font-mono text-slate-500">
-            EU-WEST-2 • Continuous WAL PITR • SOC2 Ready
-          </div>
-        </div>
-      </footer>
+      <EnterpriseFooter
+        onOpenGovernance={handleOpenGovernance}
+        auditId={auditResult?.id}
+      />
     </div>
   );
 }

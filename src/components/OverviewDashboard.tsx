@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShieldAlert, 
   Activity, 
@@ -163,6 +163,48 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   onOpenMemoryOverlay,
   isMemoryOptimized = false
 }) => {
+  const [telemetryData, setTelemetryData] = useState<{
+    serverHeapUsedMb?: number;
+    serverRssMb?: number;
+    browserHeapUsedMb?: number;
+    isLive: boolean;
+  }>({ isLive: false });
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchTelemetry() {
+      try {
+        const res = await fetch('/api/telemetry/memory');
+        if (res.ok) {
+          const data = await res.json();
+          let browserHeap: number | undefined;
+          if (typeof window !== 'undefined' && (window.performance as any)?.memory) {
+            browserHeap = Number((((window.performance as any).memory.usedJSHeapSize) / (1024 * 1024)).toFixed(1));
+          }
+          if (isMounted) {
+            setTelemetryData({
+              serverHeapUsedMb: data.heapStats?.usedHeapSizeMb,
+              serverRssMb: data.processMemory?.rssMb,
+              browserHeapUsedMb: browserHeap,
+              isLive: true
+            });
+          }
+        }
+      } catch (e) {
+        if (typeof window !== 'undefined' && (window.performance as any)?.memory && isMounted) {
+          const browserHeap = Number((((window.performance as any).memory.usedJSHeapSize) / (1024 * 1024)).toFixed(1));
+          setTelemetryData({ browserHeapUsedMb: browserHeap, isLive: true });
+        }
+      }
+    }
+    fetchTelemetry();
+    const interval = setInterval(fetchTelemetry, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   if (!auditResult) {
     if (isLoading) {
       return (
@@ -572,7 +614,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                   Memory Performance & Heap Lifecycle (D3.js Telemetry)
                 </h3>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 font-semibold">
-                  D3 Engine Active
+                  {telemetryData.isLive ? 'Live V8 Telemetry Active' : 'D3 Engine Active'}
                 </span>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
@@ -609,20 +651,36 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               AST Peak Allocation
             </span>
             <p className="text-lg font-bold font-mono text-slate-900 dark:text-white">
-              ~{(14.5 + Math.min(currFiles, 50) * 0.48 + 12.0).toFixed(1)} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">MB</span>
+              {telemetryData.serverRssMb 
+                ? `${telemetryData.serverRssMb} ` 
+                : `~${(14.5 + Math.min(currFiles, 50) * 0.48 + 12.0).toFixed(1)} `}
+              <span className="text-xs font-normal text-slate-500 dark:text-slate-400">MB</span>
             </p>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400">Token buffers & symbol graphs</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400">
+              {telemetryData.serverRssMb ? 'Live Node V8 Process RSS' : 'Token buffers & symbol graphs'}
+            </span>
           </div>
 
           <div className="p-3 bg-slate-50 dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-lg space-y-1">
             <span className="text-[10px] font-semibold uppercase text-indigo-700 dark:text-slate-400 flex items-center gap-1">
               <Activity className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-              Current Browser Heap
+              Current Heap Footprint
             </span>
             <p className="text-lg font-bold font-mono text-indigo-700 dark:text-indigo-300">
-              {isMemoryOptimized ? '15.4' : (14.5 + Math.min(currFiles, 50) * 0.35).toFixed(1)} <span className="text-xs font-normal text-indigo-600 dark:text-indigo-400">MB</span>
+              {telemetryData.browserHeapUsedMb 
+                ? `${telemetryData.browserHeapUsedMb} ` 
+                : telemetryData.serverHeapUsedMb 
+                  ? `${telemetryData.serverHeapUsedMb} ` 
+                  : `${isMemoryOptimized ? '15.4' : (14.5 + Math.min(currFiles, 50) * 0.35).toFixed(1)} `}
+              <span className="text-xs font-normal text-indigo-600 dark:text-indigo-400">MB</span>
             </p>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400">{isMemoryOptimized ? 'Optimal steady state' : 'Active buffer footprint'}</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400">
+              {telemetryData.browserHeapUsedMb 
+                ? 'Live Chromium JS Heap' 
+                : telemetryData.serverHeapUsedMb 
+                  ? 'Live Server V8 Heap' 
+                  : (isMemoryOptimized ? 'Optimal steady state' : 'Active buffer footprint')}
+            </span>
           </div>
 
           <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 rounded-lg space-y-1">

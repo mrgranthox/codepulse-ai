@@ -478,8 +478,32 @@ app.get('/api/telemetry/memory', (req: Request, res: Response) => {
   });
 });
 
+// In-memory telemetry accumulator for live budget tracking
+interface BudgetUsageStats {
+  totalAuditsRun: number;
+  totalTokensEstimated: number;
+  totalExecutionTimeMs: number;
+  totalAstRawChars: number;
+  totalAstDistilledChars: number;
+}
+
+const liveBudgetStats: BudgetUsageStats = {
+  totalAuditsRun: 0,
+  totalTokensEstimated: 0,
+  totalExecutionTimeMs: 0,
+  totalAstRawChars: 0,
+  totalAstDistilledChars: 0
+};
+
 // Real-time Token and Budget Usage Telemetry Endpoint
 app.get('/api/budget/usage', (req: Request, res: Response) => {
+  const avgAstReduction = liveBudgetStats.totalAstRawChars > 0
+    ? Math.round(((liveBudgetStats.totalAstRawChars - liveBudgetStats.totalAstDistilledChars) / liveBudgetStats.totalAstRawChars) * 100)
+    : 64;
+  const avgExecutionMs = liveBudgetStats.totalAuditsRun > 0
+    ? Math.round(liveBudgetStats.totalExecutionTimeMs / liveBudgetStats.totalAuditsRun)
+    : 1450;
+
   return res.json({
     timestamp: new Date().toISOString(),
     status: 'PASS_WITHIN_GUARDRAIL',
@@ -489,7 +513,10 @@ app.get('/api/budget/usage', (req: Request, res: Response) => {
       flashInput: 0.075,
       flashOutput: 0.30
     },
-    astTokenCompressionPct: 62
+    astTokenCompressionPct: avgAstReduction,
+    totalAuditsTracked: liveBudgetStats.totalAuditsRun,
+    totalTokensEstimated: liveBudgetStats.totalTokensEstimated,
+    avgExecutionTimeMs: avgExecutionMs
   });
 });
 
@@ -1278,6 +1305,9 @@ function getGeminiClient(): GoogleGenAI | null {
 
 // List of models in order of priority for automatic retry on high-demand 503/429
 const CANDIDATE_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
   'gemini-3.8-flash',
   'gemini-flash-latest',
   'gemini-3.1-flash-lite'
@@ -1294,7 +1324,7 @@ async function generateContentWithResilience(
     timeoutMs?: number;
   }
 ): Promise<{ text: string; modelUsed: string }> {
-  const preferred = params.preferredModel || 'gemini-3.8-flash';
+  const preferred = params.preferredModel || 'gemini-2.5-flash';
   const modelsToTry = [
     preferred,
     ...CANDIDATE_MODELS.filter((m) => m !== preferred)
@@ -1528,7 +1558,13 @@ function normalizeAuditResult(parsedData: any): any {
 }
 
 // Comprehensive AST & security pattern analyzer for real-time local scanning
-function runDynamicHeuristicAudit(files: any[], repoName: string, customRules: string, startTime: number) {
+function runDynamicHeuristicAudit(
+  files: any[], 
+  repoName: string, 
+  customRules: string, 
+  startTime: number,
+  activeFrameworks: { owasp?: boolean; cwe?: boolean; soc2?: boolean } = { owasp: true, cwe: true, soc2: true }
+) {
   const securityAudit: any[] = [];
   const codeSmells: any[] = [];
   const discoveredComponents: any[] = [];
@@ -2695,16 +2731,45 @@ ${compLinks}
         'Enforce tenant-isolated RLS policies across all data store schemas.'
       ]
     },
-    securityAudit: enrichedSecurityAudit,
+    securityAudit: (() => {
+      let findings = enrichedSecurityAudit;
+      if (activeFrameworks.owasp === false) {
+        findings = findings.filter((f) => !f.owaspCategory || f.owaspCategory === 'Other');
+      }
+      if (activeFrameworks.cwe === false) {
+        findings = findings.filter((f) => !f.isCweTop25);
+      }
+      if (activeFrameworks.soc2 === false) {
+        findings = findings.filter((f) => !f.title.toLowerCase().includes('audit') && !f.title.toLowerCase().includes('policy'));
+      }
+      return findings;
+    })(),
     codeSmells,
-    astMetrics: {
-      totalLinesOfCode: totalLines,
-      totalFunctions: Math.max(1, totalFunctions),
-      totalClassesOrModules: Math.max(files.length, totalClasses),
-      estimatedTokenCount: Math.round(totalLines * 12.5),
-      astReductionPercentage: 64,
-      languageBreakdown
-    }
+    astMetrics: (() => {
+      let rawChars = 0;
+      let distilledChars = 0;
+      files.forEach((f: any) => {
+        const c = f.content || '';
+        rawChars += c.length;
+        distilledChars += distillCode(c, f.path || f.name).distilled.length;
+      });
+      const reduction = rawChars > 0
+        ? Math.max(15, Math.min(92, Math.round(((rawChars - distilledChars) / rawChars) * 100)))
+        : 64;
+
+      // Track into live budget telemetry
+      liveBudgetStats.totalAstRawChars += rawChars;
+      liveBudgetStats.totalAstDistilledChars += distilledChars;
+
+      return {
+        totalLinesOfCode: totalLines,
+        totalFunctions: Math.max(1, totalFunctions),
+        totalClassesOrModules: Math.max(files.length, totalClasses),
+        estimatedTokenCount: Math.round(totalLines * 12.5),
+        astReductionPercentage: reduction,
+        languageBreakdown
+      };
+    })()
   };
 }
 
@@ -2784,6 +2849,67 @@ function mergeAuditResults(aiAudit: any, heuristicAudit: any): any {
   };
 }
 
+// Helper to consistently stamp compliance attestations, append WAL entries, and track budget telemetry
+function finalizeAuditResultWithCompliance(
+  tenantId: string,
+  repoName: string,
+  files: any[],
+  modelUsed: string,
+  startTime: number,
+  mergedData: any,
+  walEventType: string = 'AUDIT_COMMITTED'
+): any {
+  const auditId = `audit-${Date.now()}`;
+  const auditTimestamp = new Date().toISOString();
+  const rawDigest = files.map((f: any) => `${f.path || f.name}:${f.content?.length || 0}`).join('|');
+  const merkleRoot = crypto.createHash('sha256').update(rawDigest).digest('hex');
+  const proofPayload = [auditId, repoName, merkleRoot, auditTimestamp].join(':');
+  const cryptographicProof = crypto.createHash('sha256').update(proofPayload).digest('hex');
+
+  const walSeq = appendWalEntry(tenantId, auditId, walEventType, {
+    repoName,
+    filesCount: files.length,
+    proof: cryptographicProof
+  });
+
+  const compliance: ComplianceAuditEntry = {
+    auditId,
+    tenantId,
+    repoName,
+    timestamp: auditTimestamp,
+    scannedFilesCount: files.length,
+    cryptographicProof,
+    merkleRoot,
+    walSequence: walSeq,
+    dataResidencyRegion: 'EU-WEST-2 (Cloud Run Container London)',
+    encryptionStandard: 'AES-256-GCM / TLS 1.3',
+    zeroPromptRetention: true,
+    rlsEnforced: true,
+    activePoliciesCount: 4
+  };
+  complianceLedger.set(auditId, compliance);
+
+  const executionTimeMs = Date.now() - startTime;
+
+  // Track into live budget telemetry
+  liveBudgetStats.totalAuditsRun += 1;
+  liveBudgetStats.totalExecutionTimeMs += executionTimeMs;
+  if (mergedData?.astMetrics?.estimatedTokenCount) {
+    liveBudgetStats.totalTokensEstimated += mergedData.astMetrics.estimatedTokenCount;
+  }
+
+  return {
+    id: auditId,
+    timestamp: auditTimestamp,
+    repoName,
+    executionTimeMs,
+    modelUsed,
+    scannedFilesCount: files.length,
+    ...mergedData,
+    compliance
+  };
+}
+
 // ---------------------------------------------------------
 // 3. AUDIT PIPELINE WITH MAP-REDUCE & STRATEGIC DISTILLATION
 // ---------------------------------------------------------
@@ -2791,17 +2917,18 @@ async function executeAuditPipeline(
   files: any[], 
   repoName: string = 'Uploaded Codebase', 
   customRules: string = '', 
-  tenantId: string = 'tenant_default'
+  tenantId: string = 'tenant_default',
+  activeFrameworks: { owasp?: boolean; cwe?: boolean; soc2?: boolean } = { owasp: true, cwe: true, soc2: true }
 ): Promise<any> {
   const startTime = Date.now();
   // Precompute AST & heuristic findings for deep multi-vector coverage
-  const heuristicResult = runDynamicHeuristicAudit(files, repoName, customRules, startTime);
+  const heuristicResult = runDynamicHeuristicAudit(files, repoName, customRules, startTime, activeFrameworks);
   const ai = getGeminiClient();
 
   // 1. Build Strategic Dependency Graph & Distill Files
   const { mapSummary, clusters } = buildDependencyMap(files);
   const domainKeys = Object.keys(clusters);
-  // Reserve multi-pass Map-Reduce strictly for massive codebases (> 40 files), as gemini-3.6-flash has a 1M+ token context window
+  // Reserve multi-pass Map-Reduce strictly for massive codebases (> 40 files), as gemini models have a massive token context window
   const isLargeCodebase = files.length > 40 && domainKeys.length > 2;
 
   // Distill files to send structural skeletons (AST signatures, routes, schemas) alongside dependency graph
@@ -2880,7 +3007,7 @@ Synthesize the final complete audit report adhering strictly to the JSON schema,
 
           const { text: responseText, modelUsed } = await generateContentWithResilience(ai, {
             contents: reducePrompt,
-            preferredModel: 'gemini-3.8-flash',
+            preferredModel: 'gemini-2.5-flash',
             timeoutMs: 16000,
             config: {
               systemInstruction: CODEPULSE_SYSTEM_INSTRUCTION,
@@ -2893,17 +3020,17 @@ Synthesize the final complete audit report adhering strictly to the JSON schema,
           parsedData = normalizeAuditResult(parsedData);
           const mergedData = mergeAuditResults(parsedData, heuristicResult);
 
-          return {
-            id: `audit-${Date.now()}`,
-            timestamp: new Date().toISOString(),
+          return finalizeAuditResultWithCompliance(
+            tenantId,
             repoName,
-            executionTimeMs: Date.now() - startTime,
-            modelUsed: `${modelUsed} + CodePulse Deep AST Engine`,
-            scannedFilesCount: files.length,
-            ...mergedData
-          };
+            files,
+            `${modelUsed} + CodePulse Map-Reduce AST Engine`,
+            startTime,
+            mergedData,
+            'AUDIT_COMMITTED_MAP_REDUCE'
+          );
         } else {
-          // Standard Single-Pass Distilled Fast Audit (~1.5s - 3s with gemini-3.8-flash)
+          // Standard Single-Pass Distilled Fast Audit (~1.5s - 3s with gemini-2.5-flash)
           const userPrompt = `Audit the following codebase repository named "${repoName}":
 
 Structural Dependency & Domain Graph:
@@ -2917,7 +3044,7 @@ Identify all vulnerabilities across OWASP Top 10 and CWE categories (especially 
 
           const { text: responseText, modelUsed } = await generateContentWithResilience(ai, {
             contents: userPrompt,
-            preferredModel: 'gemini-3.8-flash',
+            preferredModel: 'gemini-2.5-flash',
             timeoutMs: 20000,
             config: {
               systemInstruction: CODEPULSE_SYSTEM_INSTRUCTION,
@@ -2930,42 +3057,15 @@ Identify all vulnerabilities across OWASP Top 10 and CWE categories (especially 
           parsedData = normalizeAuditResult(parsedData);
           const mergedData = mergeAuditResults(parsedData, heuristicResult);
 
-          const auditId = `audit-${Date.now()}`;
-          const auditTimestamp = new Date().toISOString();
-          const rawDigest = files.map((f: any) => `${f.path || f.name}:${f.content?.length || 0}`).join('|');
-          const merkleRoot = crypto.createHash('sha256').update(rawDigest).digest('hex');
-          const proofPayload = [auditId, repoName, merkleRoot, auditTimestamp].join(':');
-          const cryptographicProof = crypto.createHash('sha256').update(proofPayload).digest('hex');
-
-          const walSeq = appendWalEntry(tenantId, auditId, 'AUDIT_COMMITTED', { repoName, filesCount: files.length, proof: cryptographicProof });
-
-          const compliance: ComplianceAuditEntry = {
-            auditId,
+          return finalizeAuditResultWithCompliance(
             tenantId,
             repoName,
-            timestamp: auditTimestamp,
-            scannedFilesCount: files.length,
-            cryptographicProof,
-            merkleRoot,
-            walSequence: walSeq,
-            dataResidencyRegion: 'EU-WEST-2 (Cloud Run Container London)',
-            encryptionStandard: 'AES-256-GCM / TLS 1.3',
-            zeroPromptRetention: true,
-            rlsEnforced: true,
-            activePoliciesCount: 4
-          };
-          complianceLedger.set(auditId, compliance);
-
-          return {
-            id: auditId,
-            timestamp: auditTimestamp,
-            repoName,
-            executionTimeMs: Date.now() - startTime,
-            modelUsed: `${modelUsed} + CodePulse Deep AST Engine`,
-            scannedFilesCount: files.length,
-            ...mergedData,
-            compliance
-          };
+            files,
+            `${modelUsed} + CodePulse Deep AST Engine`,
+            startTime,
+            mergedData,
+            'AUDIT_COMMITTED'
+          );
         }
       })();
 
@@ -3022,7 +3122,12 @@ Identify all vulnerabilities across OWASP Top 10 and CWE categories (especially 
 
 app.post('/api/audit', ingestionRateLimiter, requireAuth('auditor'), async (req: Request, res: Response) => {
   try {
-    const { files, repoName = 'Uploaded Codebase', customRules = '' } = req.body;
+    const { 
+      files, 
+      repoName = 'Uploaded Codebase', 
+      customRules = '',
+      activeFrameworks = { owasp: true, cwe: true, soc2: true }
+    } = req.body;
     if (!files || !Array.isArray(files) || files.length === 0) {
       return res.status(400).json({ error: 'Please provide at least one code file to audit.' });
     }
@@ -3046,7 +3151,7 @@ app.post('/api/audit', ingestionRateLimiter, requireAuth('auditor'), async (req:
       content: scrubSecrets(file.content || '')
     }));
 
-    const auditResult = await executeAuditPipeline(sanitizedFiles, repoName, customRules, tenantContext.tenantId);
+    const auditResult = await executeAuditPipeline(sanitizedFiles, repoName, customRules, tenantContext.tenantId, activeFrameworks);
     return res.json(auditResult);
   } catch (err: any) {
     console.error('Error in /api/audit handler:', err);

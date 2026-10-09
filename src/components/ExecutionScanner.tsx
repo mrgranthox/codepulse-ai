@@ -11,7 +11,8 @@ import {
   Zap, 
   Lock, 
   ArrowRight,
-  Clock
+  Clock,
+  X 
 } from 'lucide-react';
 import { CodeFile, AuditResult } from '../types';
 import { CodePulseLogo } from './CodePulseLogo';
@@ -74,7 +75,8 @@ export const ExecutionScanner: React.FC<ExecutionScannerProps> = ({
   files,
   repoName,
   isAuditComplete = false,
-  auditResult = null
+  auditResult = null,
+  onCancel
 }) => {
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
@@ -269,6 +271,17 @@ export const ExecutionScanner: React.FC<ExecutionScannerProps> = ({
                 Gemini 3.6 + AST
               </span>
             </div>
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-950/70 hover:bg-rose-900 border border-rose-800/60 text-xs font-semibold text-rose-300 hover:text-white transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-sm"
+                title="Cancel and abort this audit"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Cancel Scan</span>
+              </button>
+            )}
           </div>
         </div>
 

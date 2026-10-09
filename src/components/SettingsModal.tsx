@@ -20,12 +20,20 @@ import {
 import { useTheme, ThemeMode } from '../context/ThemeContext';
 import { CodePulseLogo } from './CodePulseLogo';
 
+export interface FrameworkPreferences {
+  owaspEnabled: boolean;
+  cweEnabled: boolean;
+  soc2Enabled: boolean;
+}
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onClearHistory?: () => void;
   onResetPreferences?: () => void;
   historyCount?: number;
+  frameworkPreferences?: FrameworkPreferences;
+  onUpdateFrameworkPreferences?: (prefs: FrameworkPreferences) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -33,7 +41,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   onClearHistory,
   onResetPreferences,
-  historyCount = 0
+  historyCount = 0,
+  frameworkPreferences,
+  onUpdateFrameworkPreferences
 }) => {
   const { mode, effectiveTheme, setMode } = useTheme();
   const [activeTab, setActiveTab] = useState<'theme' | 'memory' | 'security' | 'engine'>('theme');
@@ -43,10 +53,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [maxGithubFiles, setMaxGithubFiles] = useState<number>(() => {
     return Number(localStorage.getItem('codepulse_max_files') || '250');
   });
-  const [owaspEnabled, setOwaspEnabled] = useState<boolean>(true);
-  const [cweEnabled, setCweEnabled] = useState<boolean>(true);
-  const [soc2Enabled, setSoc2Enabled] = useState<boolean>(true);
+
+  const [frameworks, setFrameworks] = useState<FrameworkPreferences>(() => {
+    if (frameworkPreferences) return frameworkPreferences;
+    try {
+      const stored = localStorage.getItem('codepulse_framework_prefs');
+      if (stored) return JSON.parse(stored);
+    } catch (_) {}
+    return { owaspEnabled: true, cweEnabled: true, soc2Enabled: true };
+  });
+
   const [saveToast, setSaveToast] = useState<string | null>(null);
+
+  const handleToggleFramework = (key: keyof FrameworkPreferences, val: boolean) => {
+    const updated = { ...frameworks, [key]: val };
+    setFrameworks(updated);
+    try {
+      localStorage.setItem('codepulse_framework_prefs', JSON.stringify(updated));
+    } catch (_) {}
+    if (onUpdateFrameworkPreferences) {
+      onUpdateFrameworkPreferences(updated);
+    }
+    triggerSaveToast('Security framework configuration updated.');
+  };
 
   if (!isOpen) return null;
 
@@ -327,8 +356,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <input
                     type="checkbox"
-                    checked={owaspEnabled}
-                    onChange={(e) => setOwaspEnabled(e.target.checked)}
+                    checked={frameworks.owaspEnabled}
+                    onChange={(e) => handleToggleFramework('owaspEnabled', e.target.checked)}
                     className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
                 </div>
@@ -345,8 +374,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <input
                     type="checkbox"
-                    checked={cweEnabled}
-                    onChange={(e) => setCweEnabled(e.target.checked)}
+                    checked={frameworks.cweEnabled}
+                    onChange={(e) => handleToggleFramework('cweEnabled', e.target.checked)}
                     className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
                 </div>
@@ -363,8 +392,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <input
                     type="checkbox"
-                    checked={soc2Enabled}
-                    onChange={(e) => setSoc2Enabled(e.target.checked)}
+                    checked={frameworks.soc2Enabled}
+                    onChange={(e) => handleToggleFramework('soc2Enabled', e.target.checked)}
                     className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
                 </div>
