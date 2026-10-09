@@ -1247,10 +1247,25 @@ function buildDependencyMap(files: any[]): { mapSummary: string; clusters: Recor
   return { mapSummary, clusters };
 }
 
-// Helper for Gemini AI client
+// Helper for Gemini AI client with authentication validation
+let isGeminiAuthDisabled = false;
+let lastAuthCheckTime = 0;
+
+function isGeminiAuthBlocked(): boolean {
+  if (isGeminiAuthDisabled && Date.now() - lastAuthCheckTime < 120000) {
+    return true;
+  }
+  return false;
+}
+
+function markGeminiAuthFailed() {
+  isGeminiAuthDisabled = true;
+  lastAuthCheckTime = Date.now();
+}
+
 function getGeminiClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey || isGeminiAuthBlocked()) return null;
   return new GoogleGenAI({
     apiKey,
     httpOptions: {
@@ -1263,9 +1278,8 @@ function getGeminiClient(): GoogleGenAI | null {
 
 // List of models in order of priority for automatic retry on high-demand 503/429
 const CANDIDATE_MODELS = [
-  'gemini-3.6-flash',
-  'gemini-3-flash-preview',
   'gemini-3.8-flash',
+  'gemini-flash-latest',
   'gemini-3.1-flash-lite'
 ];
 
@@ -1280,7 +1294,7 @@ async function generateContentWithResilience(
     timeoutMs?: number;
   }
 ): Promise<{ text: string; modelUsed: string }> {
-  const preferred = params.preferredModel || 'gemini-3.6-flash';
+  const preferred = params.preferredModel || 'gemini-3.8-flash';
   const modelsToTry = [
     preferred,
     ...CANDIDATE_MODELS.filter((m) => m !== preferred)
@@ -1312,6 +1326,22 @@ async function generateContentWithResilience(
       } catch (err: any) {
         lastError = err;
         const statusCode = err?.status || err?.code || (err?.error && err.error.code);
+        const errMessage = String(err?.message || '');
+        const isAuthError =
+          statusCode === 401 ||
+          statusCode === 403 ||
+          errMessage.includes('UNAUTHENTICATED') ||
+          errMessage.includes('invalid authentication credentials') ||
+          errMessage.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') ||
+          errMessage.includes('API_KEY_SERVICE_BLOCKED') ||
+          errMessage.includes('API_KEY_INVALID');
+
+        if (isAuthError) {
+          markGeminiAuthFailed();
+          console.warn(`[Gemini Resilience] Authentication not available for Gemini API (${statusCode || 'UNAUTHENTICATED'}). Fast-failing to deterministic engine.`);
+          throw err;
+        }
+
         const isTransient = statusCode === 503 || statusCode === 429 || statusCode === 500;
 
         if (isTransient && attempt === 1) {
@@ -2820,7 +2850,7 @@ ${distilled}
               try {
                 const mapRes = await generateContentWithResilience(ai, {
                   contents: domainPrompt,
-                  preferredModel: 'gemini-3.6-flash',
+                  preferredModel: 'gemini-3.8-flash',
                   timeoutMs: 8000,
                   config: {
                     systemInstruction: 'Summarize key interface contracts, security vulnerabilities, and component role in 3 concise bullet points.'
@@ -2850,7 +2880,7 @@ Synthesize the final complete audit report adhering strictly to the JSON schema,
 
           const { text: responseText, modelUsed } = await generateContentWithResilience(ai, {
             contents: reducePrompt,
-            preferredModel: 'gemini-3.6-flash',
+            preferredModel: 'gemini-3.8-flash',
             timeoutMs: 16000,
             config: {
               systemInstruction: CODEPULSE_SYSTEM_INSTRUCTION,
@@ -2873,7 +2903,7 @@ Synthesize the final complete audit report adhering strictly to the JSON schema,
             ...mergedData
           };
         } else {
-          // Standard Single-Pass Distilled Fast Audit (~1.5s - 3s with gemini-3.6-flash)
+          // Standard Single-Pass Distilled Fast Audit (~1.5s - 3s with gemini-3.8-flash)
           const userPrompt = `Audit the following codebase repository named "${repoName}":
 
 Structural Dependency & Domain Graph:
@@ -2887,7 +2917,7 @@ Identify all vulnerabilities across OWASP Top 10 and CWE categories (especially 
 
           const { text: responseText, modelUsed } = await generateContentWithResilience(ai, {
             contents: userPrompt,
-            preferredModel: 'gemini-3.6-flash',
+            preferredModel: 'gemini-3.8-flash',
             timeoutMs: 20000,
             config: {
               systemInstruction: CODEPULSE_SYSTEM_INSTRUCTION,
@@ -2952,7 +2982,7 @@ Identify all vulnerabilities across OWASP Top 10 and CWE categories (especially 
         return aiResult;
       }
     } catch (err: any) {
-      console.error('Error or timeout in resilient Gemini audit:', err?.message || err);
+      console.warn('[Audit Pipeline] Gemini AI synthesis unavailable or timed out; smoothly utilizing CodePulse Deep AST Engine:', err?.message || err);
     }
   }
 

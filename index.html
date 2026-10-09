@@ -15,6 +15,39 @@
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <script>
       (function() {
+        // Safe property descriptor for window.fetch to prevent extension reassignment errors
+        try {
+          if (typeof window !== 'undefined') {
+            var _origFetch = window.fetch;
+            var _curFetch = _origFetch;
+            Object.defineProperty(window, 'fetch', {
+              get: function() {
+                return _curFetch;
+              },
+              set: function(fn) {
+                _curFetch = fn;
+              },
+              configurable: true,
+              enumerable: true
+            });
+          }
+        } catch (e) {
+          // Ignore if property descriptor cannot be defined
+        }
+
+        // Intercept browser extension script errors early
+        window.addEventListener('error', function(event) {
+          if (event && event.message && (
+            event.message.indexOf('cannot set property fetch') !== -1 ||
+            event.message.indexOf('fetch of #<Window>') !== -1 ||
+            (event.filename && (event.filename.indexOf('chrome-extension://') !== -1 || event.filename.indexOf('moz-extension://') !== -1))
+          )) {
+            event.preventDefault();
+            event.stopPropagation();
+            return true;
+          }
+        }, true);
+
         try {
           var saved = localStorage.getItem('codepulse_theme_mode_v2');
           var isDark = saved === 'dark' || (saved !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);

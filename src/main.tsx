@@ -4,21 +4,36 @@ import App from './App.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 
-// Handle any third-party cross-origin script errors or unhandled rejections gracefully
+// Handle any third-party browser extensions, cross-origin script errors or unhandled rejections gracefully
 if (typeof window !== 'undefined') {
+  const isExtensionOrScriptError = (msg?: string, filename?: string) => {
+    if (!msg) return false;
+    const lowerMsg = msg.toLowerCase();
+    const lowerFile = (filename || '').toLowerCase();
+    return (
+      lowerMsg.includes('script error') ||
+      lowerMsg.includes('cannot set property fetch') ||
+      lowerMsg.includes('fetch of #<window>') ||
+      lowerFile.includes('chrome-extension://') ||
+      lowerFile.includes('moz-extension://')
+    );
+  };
+
   window.addEventListener('error', (event) => {
-    // Check for generic cross-origin Script error
-    if (event.message === 'Script error.' || event.message?.includes('Script error')) {
-      console.warn('Cross-origin script event intercepted:', event);
+    if (isExtensionOrScriptError(event.message, event.filename)) {
+      console.warn('Browser extension or script error suppressed:', event.message);
       event.preventDefault();
+      event.stopPropagation();
       return true;
     }
-  });
+  }, true);
 
   window.addEventListener('unhandledrejection', (event) => {
-    if (event.reason?.message?.includes('Script error') || event.reason?.message?.includes('Loading chunk')) {
-      console.warn('Unhandled rejection intercepted:', event.reason);
+    const reasonMsg = event.reason?.message || String(event.reason || '');
+    if (isExtensionOrScriptError(reasonMsg)) {
+      console.warn('Unhandled extension rejection suppressed:', reasonMsg);
       event.preventDefault();
+      event.stopPropagation();
     }
   });
 }
